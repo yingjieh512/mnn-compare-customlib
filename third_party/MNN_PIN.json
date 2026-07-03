@@ -1,0 +1,8 @@
+{
+  "repo": "https://github.com/alibaba/MNN.git",
+  "commit": "0bff03cbef43c783f44e41484b9f8a0b28bd758d",
+  "clone_command": "git clone --depth 1 https://github.com/alibaba/MNN.git third_party/MNN",
+  "verified_at": "2026-07-03",
+  "notes": "Pinned source checkout present at third_party/MNN. Keep stock MNN baseline unmodified."
+}
+

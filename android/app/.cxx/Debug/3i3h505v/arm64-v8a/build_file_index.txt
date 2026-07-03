@@ -1,0 +1,2 @@
+C:\Users\Yingjie Huang\Downloads\mnn-custom-inference-lib\CMakeLists.txt
+C:\Users\Yingjie Huang\Downloads\mnn-custom-inference-lib\customlib\CMakeLists.txt

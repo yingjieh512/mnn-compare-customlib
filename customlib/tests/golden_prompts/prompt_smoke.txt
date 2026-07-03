@@ -1,0 +1,2 @@
+Explain why on-device inference benchmarks must compare the same model, tokenizer, prompt, quantization, backend, and device.
+

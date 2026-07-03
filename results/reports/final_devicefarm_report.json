@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "status": "BLOCKED_MODEL_ARTIFACTS_AND_FINAL_RUN_NOT_EXECUTED",
+  "reason": "Exact Device Farm Samsung Galaxy S26 Ultra is available and smoke APKs were uploaded, but real Qwen3.5-9B model artifacts and stock/custom final benchmark runs were not executed.",
+  "aws_devicefarm": {
+    "region": "us-west-2",
+    "project_arn": "arn:aws:devicefarm:us-west-2:884244642857:project:64d2cc31-abd6-49f8-97da-162f82410bc0",
+    "device_pool_arn": "arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213",
+    "device_arn": "arn:aws:devicefarm:us-west-2::device:536B9FDAEAA14A11B504A3ECC86DA717",
+    "device_name": "Samsung Galaxy S26 Ultra",
+    "device_model_id": "SM-S948U1",
+    "device_os": "16",
+    "availability": "HIGHLY_AVAILABLE"
+  },
+  "stock_mnn": {
+    "prefill_tokens_per_second": 0.0,
+    "decode_tokens_per_second": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "p90": 0.0
+  },
+  "customlib": {
+    "prefill_tokens_per_second": 0.0,
+    "decode_tokens_per_second": 0.0,
+    "median": 0.0,
+    "min": 0.0,
+    "max": 0.0,
+    "p90": 0.0
+  },
+  "speedup_ratio": 0.0,
+  "target_20_decode_tps_passed": false,
+  "raw_artifacts": [
+    "results/raw/devicefarm_devices.json",
+    "results/raw/aws_resources.json",
+    "results/devicefarm_blocker.md"
+  ],
+  "mnn_commit": "0bff03cbef43c783f44e41484b9f8a0b28bd758d",
+  "hf_repo": "Qwen/Qwen3.5-9B",
+  "hf_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a"
+}
+

@@ -1,0 +1,22 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "mnn-custom-inference-lib"
+include ":stock_mnn_benchmark"
+include ":customlib_benchmark"
+project(":stock_mnn_benchmark").projectDir = file("android/app")
+project(":customlib_benchmark").projectDir = file("android/benchmark_app")
+

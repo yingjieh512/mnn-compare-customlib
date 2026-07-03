@@ -1,0 +1,39 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.example.xqwen35stock"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.example.xqwen35stock"
+        minSdk 29
+        targetSdk 35
+        versionCode 1
+        versionName "0.1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+        externalNativeBuild {
+            cmake {
+                arguments "-DXQ_BUILD_TESTS=OFF", "-DXQ_ENABLE_MNN=OFF"
+                targets "xqstock_jni"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "../../CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+}
+
+dependencies {
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test:runner:1.6.2"
+}
+

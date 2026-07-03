@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "hf_repo": "Qwen/Qwen3.5-9B",
+  "hf_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+  "mnn_commit": "0bff03cbef43c783f44e41484b9f8a0b28bd758d",
+  "headline": {
+    "quantization_bits": 4,
+    "group_size": 64,
+    "backend": "cpu",
+    "batch_size": 1,
+    "temperature": 0,
+    "top_k": 1,
+    "top_p": 1,
+    "max_new_tokens": 256,
+    "warmup_decode_tokens": 16,
+    "repeated_runs": 5
+  },
+  "prompt_files": [
+    "bench/prompts/prompt_128.txt",
+    "bench/prompts/prompt_512.txt",
+    "bench/prompts/prompt_2048.txt",
+    "bench/prompts/prompt_8192.txt"
+  ]
+}
+

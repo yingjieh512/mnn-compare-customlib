@@ -1,0 +1,2 @@
+You are benchmarking mobile LLM inference. Summarize the rules for a fair apples-to-apples comparison between stock MNN and a custom MNN-based runtime. Keep the answer concise, deterministic, and focused on model identity, quantization, prompt length, backend, warmup, and decode throughput.
+
