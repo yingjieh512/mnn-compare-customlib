@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "status": "complete",
+  "device": {
+    "name": "Samsung Galaxy S26 Ultra",
+    "model_id": "SM-S948U1",
+    "os": "Android 16",
+    "device_pool_arn": "arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213"
+  },
+  "model": {
+    "hf_repo": "Qwen/Qwen3.5-9B",
+    "hf_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "mnn_zip_sha256": "fee6c0a893836afa0bae83762c8b3800d71723a7e02c006c49605a8fa2866d1b",
+    "format": "mnn_skip_weight_no_embeddings_zip_plus_sparse_embedding_on_device",
+    "quantization": "w4a16_groupwise bits=4 group_size=64"
+  },
+  "runs": {
+    "stock_mnn": {
+      "devicefarm_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/e8a525d2-aa96-402b-ad2e-6d8edc203bfa",
+      "devicefarm_result": "FAILED_due_to_spec_false_positive_but_instrumentation_OK",
+      "json_source": "results\\raw\\final_real_qwen35_devicefarm_v10\\stock_mnn_benchmark.json",
+      "engine": "mnn_stock",
+      "backend": "cpu",
+      "prefill_median_tok_s": 45.6044,
+      "decode_median_tok_s": 2.29946,
+      "measured_iterations": 5,
+      "load_wall_ms": 7947.17
+    },
+    "customlib": {
+      "devicefarm_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/940a7636-3950-48b4-9dbc-d9498a4f3e30",
+      "devicefarm_result": "PASSED",
+      "json_source": "results\\raw\\final_real_qwen35_devicefarm_v10\\customlib_benchmark.json",
+      "engine": "customlib",
+      "backend": "mnn_fallback_cpu",
+      "prefill_median_tok_s": 45.743,
+      "decode_median_tok_s": 2.25523,
+      "measured_iterations": 5,
+      "load_ms": 8438.4,
+      "selected_kernels": "customlib_api+mnn_llm_fallback; generated_arm64_kernels_present; hotpath_not_replaced"
+    }
+  },
+  "comparison": {
+    "prefill_custom_over_stock": 1.0030391804299585,
+    "decode_custom_over_stock": 0.980765049185461,
+    "decode_delta_tok_s": -0.04422999999999977
+  }
+}
