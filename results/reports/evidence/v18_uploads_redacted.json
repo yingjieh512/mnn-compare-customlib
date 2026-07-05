@@ -83,6 +83,6 @@
     "category": "PRIVATE",
     "path": "out/devicefarm_private/v18/customlib_v18r2_cpu_vulkan_hybrid.yml",
     "bytes": 6534,
-    "note": "accepted v18r2 spec uses Device Farm get-upload downloadable URLs"
+    "note": "valid v18r2 performance spec used Device Farm get-upload downloadable URLs; performance candidate later rejected by v19r2 quality guard"
   }
 ]

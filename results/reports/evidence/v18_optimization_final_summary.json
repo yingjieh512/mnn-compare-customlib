@@ -9,7 +9,7 @@
     "custom_vulkan_used_in_measured_generation": false,
     "custom_speedup_claim_allowed": false,
     "speedup_verdict": "No custom speedup claimed. Optimized custom decode is 2.14021 TPS versus stock CPU 2.27746 TPS, a 0.9397x custom/stock ratio.",
-    "v18r2_acceptance": "Accepted because v18r2 improved v17 best custom decode from 1.93417 TPS to 2.14021 TPS (+10.65%) and TPOT from 517.018 ms to 467.244 ms (-49.774 ms)."
+    "v18r2_acceptance": "Rejected after v19r2 output-quality guard; v17 remains official final."
   },
   "model": {
     "hf_repo": "Qwen/Qwen3.5-9B",
@@ -190,5 +190,16 @@
     "run_history_summary_md": "results/reports/run_history_summary.md",
     "presentation_pptx": "results/reports/qwen35_9b_v18r2_optimization_presentation.pptx",
     "presentation_contact_sheet_png": "results/reports/qwen35_9b_v18r2_optimization_presentation_contact_sheet.png"
+  },
+  "superseded_by_quality_guard": true,
+  "accepted_as_official_final_after_quality_guard": false,
+  "quality_guard_rejection": {
+    "quality_gate_passed": false,
+    "stock_validation_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/28a7b8ce-cb81-4e31-8498-c59164e9cdaa",
+    "custom_validation_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/e8582532-a655-4619-b348-9c07b5740f3d",
+    "exact_match_prompt_count": 0,
+    "prompt_count": 5,
+    "comparison_gate_prompt_count": 0,
+    "reason": "custom output was degenerate, mostly repeated token 220"
   }
 }

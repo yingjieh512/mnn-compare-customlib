@@ -10,11 +10,13 @@
 #include <cstdint>
 #include <cstring>
 #include <exception>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "kernels.hpp"
@@ -35,6 +37,7 @@ constexpr int kTracePromptTokens = 512;
 constexpr int kTraceMaxNewTokens = 16;
 constexpr int kKernelWarmupIterations = 1;
 constexpr int kKernelMeasureIterations = 3;
+constexpr int kQwen35VocabSize = 248320;
 volatile float gKernelSink = 0.0f;
 
 std::string jstringToString(JNIEnv* env, jstring value) {
@@ -185,6 +188,108 @@ struct Run {
     xq_status status = XQ_OK;
     xq_metrics metrics{};
 };
+
+struct ValidationPrompt {
+    std::string id;
+    std::string prompt_kind;
+    std::string prompt_text_hint;
+    std::vector<int32_t> tokens;
+};
+
+std::vector<ValidationPrompt> makeValidationPrompts() {
+    std::vector<ValidationPrompt> prompts;
+    prompts.push_back({"english_factual",
+                       "short_english_factual",
+                       "Fixed token-ID surrogate for: What is the capital of France?",
+                       {16, 198, 3923, 374, 279, 6864, 315, 9625, 30}});
+    prompts.push_back({"chinese_short",
+                       "short_chinese",
+                       "Fixed token-ID surrogate for a short Chinese prompt.",
+                       {16, 198, 104321, 3837, 34187, 111308, 1773}});
+    prompts.push_back({"code_like",
+                       "code_like",
+                       "Fixed token-ID surrogate for: def add(a, b):",
+                       {16, 198, 755, 912, 2948, 7, 64, 11, 293, 997}});
+    prompts.push_back({"math_reasoning",
+                       "math_reasoning",
+                       "Fixed token-ID surrogate for a short arithmetic reasoning prompt.",
+                       {16, 198, 17, 10, 17, 28, 30, 220}});
+    ValidationPrompt long_prompt;
+    long_prompt.id = "long_512_token_style";
+    long_prompt.prompt_kind = "long_512_token_style";
+    long_prompt.prompt_text_hint = "Fixed 512-token benchmark-style prompt surrogate.";
+    const int32_t pattern[] = {16, 198, 220, 271, 25, 30, 13, 11, 17, 18, 19, 20, 21, 22, 23, 24};
+    long_prompt.tokens.reserve(512);
+    for (size_t i = 0; i < 512; ++i) {
+        long_prompt.tokens.push_back(pattern[i % (sizeof(pattern) / sizeof(pattern[0]))]);
+    }
+    prompts.push_back(std::move(long_prompt));
+    return prompts;
+}
+
+template <typename T>
+void appendIntArray(std::ostringstream& oss, const std::vector<T>& values, size_t limit) {
+    oss << "[";
+    const size_t count = std::min(values.size(), limit);
+    for (size_t i = 0; i < count; ++i) {
+        if (i > 0) {
+            oss << ",";
+        }
+        oss << static_cast<int64_t>(values[i]);
+    }
+    oss << "]";
+}
+
+template <typename T>
+int countInvalidTokens(const std::vector<T>& values, int vocab_size) {
+    int invalid = 0;
+    for (T value : values) {
+        const int64_t token = static_cast<int64_t>(value);
+        if (token < 0 || token >= vocab_size) {
+            ++invalid;
+        }
+    }
+    return invalid;
+}
+
+template <typename T>
+size_t longestRepeatedRun(const std::vector<T>& values) {
+    if (values.empty()) {
+        return 0;
+    }
+    size_t best = 1;
+    size_t current = 1;
+    for (size_t i = 1; i < values.size(); ++i) {
+        if (values[i] == values[i - 1]) {
+            ++current;
+        } else {
+            best = std::max(best, current);
+            current = 1;
+        }
+    }
+    return std::max(best, current);
+}
+
+template <typename T>
+size_t uniqueTokenCount(const std::vector<T>& values) {
+    std::unordered_set<int64_t> seen;
+    for (T value : values) {
+        seen.insert(static_cast<int64_t>(value));
+    }
+    return seen.size();
+}
+
+template <typename T>
+bool obviousDegenerateOutput(const std::vector<T>& values) {
+    if (values.size() < 8) {
+        return false;
+    }
+    const size_t longest_run = longestRepeatedRun(values);
+    if (longest_run >= values.size()) {
+        return true;
+    }
+    return uniqueTokenCount(values) <= 1;
+}
 
 void appendJsonStringField(std::ostringstream& oss, const char* key, const std::string& value) {
     oss << "\"" << key << "\":\"" << jsonEscape(value) << "\"";
@@ -836,6 +941,170 @@ std::string makeJson(const std::string& model_dir,
     return oss.str();
 }
 
+std::string customQualityErrorJson(const std::string& model_dir,
+                                   xq_status status,
+                                   const std::string& error,
+                                   const std::string& custom_backend_requested,
+                                   const std::string& custom_backend_actual,
+                                   int max_new_tokens) {
+    std::ostringstream oss;
+    oss << "{"
+        << "\"schema_version\":1,"
+        << "\"artifact_type\":\"quality_validation\","
+        << "\"engine\":\"customlib\","
+        << "\"status\":\"error\","
+        << "\"quality_gate_passed\":false,"
+        << "\"error_code\":" << status << ","
+        << "\"error\":\"" << jsonEscape(error) << "\","
+        << "\"custom_backend_requested\":\"" << jsonEscape(custom_backend_requested) << "\","
+        << "\"custom_backend_actual\":\"" << jsonEscape(custom_backend_actual) << "\","
+        << "\"custom_path\":{\"calls_mnn_llm_response_for_measured_generation\":false,"
+        << "\"use_mnn_fallback\":0,\"full_custom_decode\":true,"
+        << "\"fallback_op_families\":[]},"
+        << "\"validation\":{\"prompt_set\":\"small_fixed_token_ids\","
+        << "\"validation_compare_to_stock\":true,"
+        << "\"tokenizer_decode_available\":false,"
+        << "\"max_new_tokens\":" << max_new_tokens
+        << ",\"temperature\":0,\"top_k\":1,\"top_p\":1},"
+        << "\"artifact\":{\"model_dir\":\"" << jsonEscape(model_dir) << "\"}"
+        << "}";
+    return oss.str();
+}
+
+std::string runCustomQualityValidationJson(const std::string& model_dir,
+                                           const std::string& custom_backend_requested,
+                                           const std::string& custom_backend_actual,
+                                           int max_new_tokens) {
+    const int capped_max_new_tokens = std::max(1, std::min(64, max_new_tokens));
+    xq_options options{};
+    options.struct_size = sizeof(options);
+    options.backend = custom_backend_actual.c_str();
+    options.threads = kThreads;
+    options.quant_bits = 4;
+    options.group_size = 64;
+    options.max_context_tokens = 8192;
+    options.enable_autotune = 1;
+    options.use_mnn_fallback = 0;
+
+    xq_session* session = nullptr;
+    xq_status status = xq_create(model_dir.c_str(), &options, &session);
+    if (status != XQ_OK || !session) {
+        return customQualityErrorJson(model_dir,
+                                      status,
+                                      "xq_create failed",
+                                      custom_backend_requested,
+                                      custom_backend_actual,
+                                      capped_max_new_tokens);
+    }
+
+    const std::vector<ValidationPrompt> prompts = makeValidationPrompts();
+    bool all_ok = true;
+    xq_metrics initial_metrics{};
+    initial_metrics.struct_size = sizeof(initial_metrics);
+    xq_get_last_metrics(session, &initial_metrics);
+    xq_metrics last_metrics = initial_metrics;
+    std::ostringstream prompt_json;
+    prompt_json << "[";
+    for (size_t i = 0; i < prompts.size(); ++i) {
+        const ValidationPrompt& prompt = prompts[i];
+        if (i > 0) {
+            prompt_json << ",";
+        }
+        xq_reset(session);
+        std::vector<int32_t> output(static_cast<size_t>(capped_max_new_tokens));
+        xq_metrics metrics{};
+        metrics.struct_size = sizeof(metrics);
+        status = xq_generate(session,
+                             prompt.tokens.data(),
+                             prompt.tokens.size(),
+                             output.size(),
+                             output.data(),
+                             output.size(),
+                             &metrics);
+        last_metrics = metrics;
+        const size_t generated_count = status == XQ_OK
+                                           ? std::min<size_t>(output.size(), static_cast<size_t>(metrics.generated_tokens))
+                                           : 0;
+        std::vector<int32_t> generated(output.begin(), output.begin() + generated_count);
+        const int invalid_count = countInvalidTokens(generated, kQwen35VocabSize);
+        const bool empty_output = generated.empty();
+        const bool degenerate = obviousDegenerateOutput(generated);
+        const bool prompt_ok = status == XQ_OK && invalid_count == 0 && !empty_output && !degenerate;
+        all_ok = all_ok && prompt_ok;
+
+        prompt_json << "{"
+                    << "\"id\":\"" << jsonEscape(prompt.id) << "\","
+                    << "\"prompt_kind\":\"" << jsonEscape(prompt.prompt_kind) << "\","
+                    << "\"prompt_text_hint\":\"" << jsonEscape(prompt.prompt_text_hint) << "\","
+                    << "\"raw_text_prompt_available\":false,"
+                    << "\"prompt_token_count\":" << prompt.tokens.size() << ","
+                    << "\"prompt_token_ids\":";
+        appendIntArray(prompt_json, prompt.tokens, prompt.tokens.size());
+        prompt_json << ",\"generated_token_count\":" << generated_count
+                    << ",\"generated_token_ids\":";
+        appendIntArray(prompt_json, generated, generated.size());
+        prompt_json << ",\"decoded_text_available\":false,"
+                    << "\"decoded_generated_text\":\"\","
+                    << "\"status_code\":" << status << ","
+                    << "\"status\":\"" << (prompt_ok ? "ok" : "error") << "\","
+                    << "\"invalid_token_count\":" << invalid_count << ","
+                    << "\"empty_output\":" << (empty_output ? "true" : "false") << ","
+                    << "\"longest_repeated_run\":" << longestRepeatedRun(generated) << ","
+                    << "\"unique_token_count\":" << uniqueTokenCount(generated) << ","
+                    << "\"obvious_degenerate_output\":" << (degenerate ? "true" : "false") << ","
+                    << "\"prefill_ms\":" << metrics.prefill_ms << ","
+                    << "\"decode_total_ms\":" << metrics.decode_total_ms
+                    << "}";
+    }
+    prompt_json << "]";
+
+    std::vector<char> trace_buffer(1024 * 1024);
+    std::string kernel_trace_json = "{\"rows\":[]}";
+    if (xq_get_kernel_trace_json(session, trace_buffer.data(), trace_buffer.size()) == XQ_OK) {
+        kernel_trace_json = trace_buffer.data();
+    }
+    xq_destroy(session);
+
+    std::ostringstream oss;
+    oss << "{"
+        << "\"schema_version\":1,"
+        << "\"artifact_type\":\"quality_validation\","
+        << "\"engine\":\"customlib\","
+        << "\"status\":\"" << (all_ok ? "ok" : "error") << "\","
+        << "\"quality_gate_passed\":" << (all_ok ? "true" : "false") << ","
+        << "\"model\":{\"hf_repo\":\"Qwen/Qwen3.5-9B\","
+        << "\"hf_revision\":\"c202236235762e1c871ad0ccb60c8ee5ba337b9a\","
+        << "\"format\":\"xqwen35_custom_w4a16\","
+        << "\"vocab_size_assumed\":" << kQwen35VocabSize << "},"
+        << "\"artifact\":{\"model_dir\":\"" << jsonEscape(model_dir) << "\"},"
+        << "\"runtime\":{\"threads\":" << kThreads
+        << ",\"selected_kernels\":{\"summary\":\""
+        << jsonEscape(last_metrics.selected_kernels[0] ? last_metrics.selected_kernels : initial_metrics.selected_kernels)
+        << "\",\"hotpath_replaced\":true,"
+        << "\"full_custom_decode\":true,"
+        << "\"replaced_op_families\":[\"q_proj\",\"k_proj\",\"v_proj\",\"o_proj\",\"gate_proj\",\"up_proj\",\"down_proj\",\"rmsnorm\",\"rope\",\"attention\",\"linear_attention_state\",\"lm_head\",\"sampling\",\"prefill_kv_build\"],"
+        << "\"fallback_op_families\":[]}},"
+        << "\"custom_path\":{\"calls_mnn_llm_response_for_measured_generation\":false,"
+        << "\"use_mnn_fallback\":0,"
+        << "\"full_custom_decode\":true,"
+        << "\"fallback_op_families\":[],"
+        << "\"decode_loop\":\"xq_session::generate -> xq_prefill/xq_decode_one -> CustomModel::prefill/runLayer/sampleGreedy\"},"
+        << "\"custom_backend_requested\":\"" << jsonEscape(custom_backend_requested) << "\","
+        << "\"custom_backend_actual\":\"" << jsonEscape(custom_backend_actual) << "\","
+        << "\"validation\":{\"prompt_set\":\"small_fixed_token_ids\","
+        << "\"validation_compare_to_stock\":true,"
+        << "\"tokenizer_decode_available\":false,"
+        << "\"validation_dump_tokens\":true,"
+        << "\"validation_dump_text\":false,"
+        << "\"max_new_tokens\":" << capped_max_new_tokens
+        << ",\"temperature\":0,\"top_k\":1,\"top_p\":1,"
+        << "\"note\":\"Fixed token-ID prompts are used so stock MNN and customlib receive identical prompt IDs.\"},"
+        << "\"prompts\":" << prompt_json.str() << ","
+        << "\"per_kernel_wall_clock\":" << kernel_trace_json
+        << "}";
+    return oss.str();
+}
+
 }  // namespace
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -961,5 +1230,29 @@ Java_com_example_xqwen35bench_NativeBenchmark_runBenchmark(JNIEnv* env,
                                 kernel_trace_json);
     __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_RESULT_JSON %s", json.c_str());
     __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_END engine=customlib");
+    return env->NewStringUTF(json.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_xqwen35bench_NativeBenchmark_runQualityValidation(JNIEnv* env,
+                                                                   jclass,
+                                                                   jstring model_dir,
+                                                                   jstring custom_backend,
+                                                                   jint max_new_tokens) {
+    const std::string model = jstringToString(env, model_dir);
+    const std::string requested_backend = normalizeCustomBackend(jstringToString(env, custom_backend));
+    const std::string actual_backend = "cpu";
+    __android_log_print(ANDROID_LOG_INFO,
+                        "XQBENCH",
+                        "QUALITY_START engine=customlib model_dir=%s requested_backend=%s actual_backend=%s",
+                        model.c_str(),
+                        requested_backend.c_str(),
+                        actual_backend.c_str());
+    std::string json = runCustomQualityValidationJson(model,
+                                                      requested_backend,
+                                                      actual_backend,
+                                                      static_cast<int>(max_new_tokens));
+    __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_QUALITY_JSON %s", json.c_str());
+    __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "QUALITY_END engine=customlib");
     return env->NewStringUTF(json.c_str());
 }

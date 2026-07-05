@@ -12,7 +12,7 @@ Final pinned inputs:
 
 ## Final Status
 
-The v18r2 optimization final is complete. Stock MNN CPU from the accepted v17 sweep and optimized customlib v18r2 were run on the same AWS Device Farm Samsung Galaxy S26 Ultra pool with the same full Qwen3.5-9B package, same 512-token prompt, same 256-token decode length, greedy settings, and 1 warmup / 3 measured iterations.
+The v17 final backend sweep is complete. Stock MNN CPU, stock MNN Vulkan-request, custom CPU, and custom CPU/Vulkan-hybrid-request were scheduled on the same AWS Device Farm Samsung Galaxy S26 Ultra pool with the same Qwen3.5-9B package, same 512-token prompt, same 256-token decode length, greedy settings, and 1 warmup / 3 measured iterations.
 
 The measured custom generation path is full custom CPU generation:
 
@@ -30,32 +30,42 @@ Final performance result:
 | --- | --- | --- | --- | ---: | ---: | ---: |
 | Stock MNN | cpu | cpu | ok | 45.6380 | 2.27746 | 439.086 ms |
 | Stock MNN | vulkan | unavailable | crashed before benchmark JSON | n/a | n/a | n/a |
-| Customlib v17 best | cpu_vulkan_hybrid | cpu | accepted baseline | 2.21477 | 1.93417 | 517.018 ms |
-| Customlib v18r2 optimized | cpu_vulkan_hybrid | cpu | official final custom result | 2.44242 | 2.14021 | 467.244 ms |
+| Customlib | cpu | cpu | ok | 2.13908 | 1.85575 | 538.865 ms |
+| Customlib | cpu_vulkan_hybrid | cpu | ok, Vulkan probed but not used for kernels | 2.21477 | 1.93417 | 517.018 ms |
 
-v18r2 acceptance: custom decode improved from `1.93417` TPS to `2.14021` TPS, a `+10.65%` improvement over the accepted v17 custom baseline. TPOT improved from `517.018 ms` to `467.244 ms`.
+Speedup verdict: no custom speedup is claimed. The best measured custom result is `1.93417 / 2.27746 = 0.8493x` stock CPU decode TPS. The CPU optimization pass improved custom decode materially over v16, but stock MNN remains faster on this device.
 
-Speedup verdict: no custom speedup is claimed. The optimized custom result is `2.14021 / 2.27746 = 0.9397x` stock CPU decode TPS, so stock MNN remains faster on this device.
+## Post-Final Optimization And Quality Guard
+
+A bounded v18r2 optimization attempt later improved measured custom decode performance to `2.14021` TPS / `467.244 ms` TPOT on the same Device Farm pool, but the added deterministic output validation rejected that result. The custom v19r2 quality run produced degenerate repeated token `220` outputs for 4 of 5 validation prompts, exact token match was `0 / 5`, and comparison-gate pass was `0 / 5`.
+
+Per the acceptance rule, v18r2 is not accepted as the official final result. The official final delivery remains the v17 backend sweep above.
+
+- Quality validation report: `results/reports/quality_validation_report.md`
+- Stock quality evidence: `results/reports/evidence/quality_validation_v19r2_stock.json`
+- Custom quality evidence: `results/reports/evidence/quality_validation_v19r2_custom.json`
+- Quality comparison evidence: `results/reports/evidence/quality_validation_v19r2_comparison.json`
+- v18/v19 rejection note: `results/reports/optimization_attempt_v18.md`
 
 Final evidence:
 
 - Final report: `results/reports/final_devicefarm_report.md`
 - Machine-readable summary: `results/reports/final_devicefarm_report.json`
-- v18r2 custom evidence JSON: `results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v18r2.json`
-- v18 run history JSON: `results/reports/evidence/v18_scheduled_runs.json`
+- Backend sweep summary: `results/reports/evidence/v17_backend_sweep_summary.json`
 - Stock CPU evidence JSON: `results/reports/evidence/stock_mnn_cpu_benchmark_v17.json`
 - Stock Vulkan failure evidence JSON: `results/reports/evidence/stock_mnn_vulkan_benchmark_failure_v17.json`
-- v17 custom baseline evidence JSON: `results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v17.json`
+- Custom CPU evidence JSON: `results/reports/evidence/customlib_cpu_benchmark_v17.json`
+- Custom hybrid-request evidence JSON: `results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v17.json`
 - Code walkthrough: `docs/kernel_library_code_walkthrough_final.md`
-- Presentation deck: `results/reports/qwen35_9b_v18r2_optimization_presentation.pptx`
-- Presentation contact sheet: `results/reports/qwen35_9b_v18r2_optimization_presentation_contact_sheet.png`
+- Presentation deck: `results/reports/qwen35_9b_v17_backend_sweep_presentation.pptx`
+- Presentation contact sheet: `results/reports/qwen35_9b_v17_backend_sweep_presentation_contact_sheet.png`
 
 Final AWS Device Farm runs:
 
 - Stock MNN CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7e44236c-db1a-4900-9fd8-7d8d7d654e28`
 - Stock MNN Vulkan-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/067c195b-1e14-4bca-998d-c7d38a65c5c7`
-- v17 custom baseline run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1de54984-c9d9-41d1-81c1-7eed941585ed`
-- v18r2 optimized custom run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1b18e97c-38fe-4581-97c8-b7688b5fbc91`
+- Custom CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/8d765268-aacd-4f52-b845-f5370b4d522f`
+- Custom CPU/Vulkan-hybrid-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1de54984-c9d9-41d1-81c1-7eed941585ed`
 - Device pool ARN: `arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213`
 
 ## What The Custom Library Replaces
@@ -73,17 +83,6 @@ The final measured custom path replaces the requested decode and prefill familie
 - `prefill_kv_build`
 
 The public ABI is in `customlib/include/xqwen35.h`. The measured Android custom benchmark enters the library through `xq_generate`, then runs `Session::prefill`, `Session::decodeOne`, and `CustomModel` without calling `MNN::Transformer::Llm::response`.
-
-## v18r2 Optimization Pass
-
-The accepted v18r2 pass keeps the same full-custom math path and improves runtime overhead:
-
-- `embeddings_bf16.bin` is opened once in `CustomModel::load`, then a reusable BF16 row buffer feeds every prompt/decode token.
-- Full-attention KV caches reserve prompt plus decode capacity after reset.
-- Attention score/max scratch buffers and FFN buffers are reused across tokens.
-- Append paths are reserve-aware and avoid extra allocation/clear work.
-
-These changes improved full-model Device Farm custom decode from `1.93417` TPS to `2.14021` TPS.
 
 ## Build Host Correctness Tests
 
@@ -104,7 +103,7 @@ Covered checks include stable softmax, grouped-query attention decode, KV cache 
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1
 ```
 
-The v18r2 Device Farm custom run used the rebuilt custom debug APK and androidTest APK from this flow.
+The v17 Device Farm runs used rebuilt stock/custom debug APKs plus androidTest APKs from this flow.
 
 ## Model Packing
 
@@ -131,4 +130,4 @@ The cleanup keeps source, documentation, final reports, and small evidence JSON/
 
 ## Honesty Rules
 
-This repository only claims results backed by artifacts. The final v18r2 result is a faithful same-device full-model stock-vs-custom benchmark. It is not a speedup result, and it does not claim custom Vulkan kernel execution.
+This repository only claims results backed by artifacts. The final v17 result is a faithful same-device full-model stock-vs-custom benchmark. It is not a speedup result, and it does not claim custom Vulkan kernel execution.

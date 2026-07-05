@@ -21,10 +21,36 @@ public final class StockBenchmarkInstrumentationTest {
         int maxNewTokens = parseInt(args.getString("max_new_tokens", ""), 256);
         int warmupIterations = parseInt(args.getString("warmup_iterations", ""), 1);
         int measuredIterations = parseInt(args.getString("measured_iterations", ""), 5);
+        int validationMaxNewTokens = parseInt(args.getString("validation_max_new_tokens", ""), 32);
+        boolean runQualityValidation = parseBoolean(args.getString("run_quality_validation", "false"));
         String backend = sanitizeBackend(args.getString("backend", "cpu"));
         boolean allowBackendFailure = parseBoolean(args.getString("allow_backend_failure", "false"));
         File root = context.getExternalFilesDir(null);
         File dir = ModelBootstrap.resolveModelDir(context);
+        if (runQualityValidation) {
+            String json = NativeStockBenchmark.runQualityValidation(
+                    dir.getAbsolutePath(),
+                    backend,
+                    validationMaxNewTokens);
+            Log.i("XQBENCH", "BENCH_QUALITY_JSON " + json);
+            if (root != null) {
+                File artifactDir = new File(root, "bench_artifacts");
+                if (!artifactDir.mkdirs() && !artifactDir.isDirectory()) {
+                    throw new IllegalStateException("failed to create " + artifactDir.getAbsolutePath());
+                }
+                try (FileOutputStream out = new FileOutputStream(
+                        new File(artifactDir, "quality_validation_stock.json"))) {
+                    out.write(json.getBytes(StandardCharsets.UTF_8));
+                }
+            }
+            if (!json.contains("\"status\":\"ok\"") && !(allowBackendFailure && !backend.equals("cpu"))) {
+                throw new AssertionError("Quality validation returned non-ok JSON: " + json);
+            }
+            if (!json.contains("\"quality_gate_passed\":true") && !(allowBackendFailure && !backend.equals("cpu"))) {
+                throw new AssertionError("stock quality sanity gate failed: " + json);
+            }
+            return;
+        }
         String json = NativeStockBenchmark.runBenchmark(
                 dir.getAbsolutePath(),
                 backend,

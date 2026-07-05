@@ -14,4 +14,9 @@ public final class NativeStockBenchmark {
             int maxNewTokens,
             int warmupIterations,
             int measuredIterations);
+
+    public static native String runQualityValidation(
+            String modelDir,
+            String backend,
+            int maxNewTokens);
 }

@@ -1,0 +1,64 @@
+version: 0.1
+android_test_host: amazon_linux_2
+
+phases:
+  install:
+    commands:
+      - echo "stock_mnn_quality_v19r2_cpu quality validation Qwen3.5-9B fixed-token prompts max_new=32 backend=cpu"
+      - adb version
+  pre_test:
+    commands:
+      - adb install -r -g "$DEVICEFARM_APP_PATH" > "$DEVICEFARM_LOG_DIR/install_app.log" 2>&1
+      - |-
+        if [ -f "$DEVICEFARM_TEST_PACKAGE_PATH" ]; then
+          TEST_APK="$DEVICEFARM_TEST_PACKAGE_PATH"
+        else
+          TEST_APK=$(find "$DEVICEFARM_TEST_PACKAGE_PATH" -name '*.apk' -type f | head -n 1)
+        fi
+        echo "TEST_APK=$TEST_APK" > "$DEVICEFARM_LOG_DIR/test_apk_path.log"
+        adb install -r -g "$TEST_APK" > "$DEVICEFARM_LOG_DIR/install_test.log" 2>&1
+  test:
+    commands:
+      - |-
+        set +e
+        APP_FILES=/sdcard/Android/data/com.example.xqwen35stock/files
+        MODEL_PART_URL_FILE=/data/local/tmp/stock_mnn_quality_v19r2_cpu_model_zip_part_urls.txt
+        cat > "$DEVICEFARM_LOG_DIR/model_zip_part_urls.txt" <<'EOF_MODEL_PART_URLS'
+        REDACTED_URL
+        REDACTED_URL
+        REDACTED_URL
+        EOF_MODEL_PART_URLS
+        wc -l "$DEVICEFARM_LOG_DIR/model_zip_part_urls.txt" > "$DEVICEFARM_LOG_DIR/model_zip_part_urls_count.txt" 2>&1 || true
+        wc -c "$DEVICEFARM_LOG_DIR/model_zip_part_urls.txt" > "$DEVICEFARM_LOG_DIR/model_zip_part_urls_size.txt" 2>&1 || true
+        adb push "$DEVICEFARM_LOG_DIR/model_zip_part_urls.txt" "$MODEL_PART_URL_FILE" > "$DEVICEFARM_LOG_DIR/push_model_part_urls.log" 2>&1
+        adb shell chmod 0644 "$MODEL_PART_URL_FILE" >> "$DEVICEFARM_LOG_DIR/push_model_part_urls.log" 2>&1 || true
+        adb shell ls -la "$MODEL_PART_URL_FILE" > "$DEVICEFARM_LOG_DIR/url_file_listing.txt" 2>&1 || true
+        adb shell df -h > "$DEVICEFARM_LOG_DIR/df_before_test.txt" 2>&1 || true
+        adb shell getprop > "$DEVICEFARM_LOG_DIR/getprop.txt" 2>&1 || true
+        adb shell cat /proc/cpuinfo > "$DEVICEFARM_LOG_DIR/cpuinfo.txt" 2>&1 || true
+        adb logcat -c || true
+        adb shell am instrument -w -r           -e model_zip_part_urls_file "$MODEL_PART_URL_FILE"           -e model_zip_sha256 "9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34"           -e run_quality_validation "true"           -e validation_max_new_tokens "32"           -e backend "cpu"           com.example.xqwen35stock.test/androidx.test.runner.AndroidJUnitRunner           > "$DEVICEFARM_LOG_DIR/instrumentation_output.txt" 2>&1
+        STATUS=$?
+        cat "$DEVICEFARM_LOG_DIR/instrumentation_output.txt"
+        if grep -Eq 'FAILURES!!!|INSTRUMENTATION_STATUS_CODE: -2|"status":"error"|"quality_gate_passed":false' "$DEVICEFARM_LOG_DIR/instrumentation_output.txt"; then
+          STATUS=1
+        fi
+        adb logcat -d > "$DEVICEFARM_LOG_DIR/logcat_after_test.log" 2>&1 || true
+        adb shell df -h > "$DEVICEFARM_LOG_DIR/df_after_test.txt" 2>&1 || true
+        adb shell ls -la "$APP_FILES" > "$DEVICEFARM_LOG_DIR/app_files_listing.txt" 2>&1 || true
+        adb shell ls -la "$APP_FILES/bench_artifacts" > "$DEVICEFARM_LOG_DIR/bench_artifacts_listing.txt" 2>&1 || true
+        mkdir -p "$DEVICEFARM_LOG_DIR/device_files"
+        adb pull "$APP_FILES/bench_artifacts" "$DEVICEFARM_LOG_DIR/device_files/" > "$DEVICEFARM_LOG_DIR/pull_bench_artifacts.log" 2>&1 || true
+        adb pull "$APP_FILES/model_bootstrap.json" "$DEVICEFARM_LOG_DIR/device_files/" >> "$DEVICEFARM_LOG_DIR/pull_bench_artifacts.log" 2>&1 || true
+        adb pull "$APP_FILES/model_bootstrap_discovery.txt" "$DEVICEFARM_LOG_DIR/device_files/" >> "$DEVICEFARM_LOG_DIR/pull_bench_artifacts.log" 2>&1 || true
+        adb shell ls -la "$APP_FILES/bench_artifacts" >> "$DEVICEFARM_LOG_DIR/pull_bench_artifacts.log" 2>&1 || true
+        exit $STATUS
+  post_test:
+    commands:
+      - mkdir -p "$DEVICEFARM_LOG_DIR/device_files"
+      - adb pull /sdcard/Android/data/com.example.xqwen35stock/files/bench_artifacts "$DEVICEFARM_LOG_DIR/device_files/" > "$DEVICEFARM_LOG_DIR/pull_bench_artifacts_post.log" 2>&1 || true
+      - adb pull /sdcard/Android/data/com.example.xqwen35stock/files/model_bootstrap.json "$DEVICEFARM_LOG_DIR/device_files/" >> "$DEVICEFARM_LOG_DIR/pull_bench_artifacts_post.log" 2>&1 || true
+      - adb pull /sdcard/Android/data/com.example.xqwen35stock/files/model_bootstrap_discovery.txt "$DEVICEFARM_LOG_DIR/device_files/" >> "$DEVICEFARM_LOG_DIR/pull_bench_artifacts_post.log" 2>&1 || true
+
+artifacts:
+  - $DEVICEFARM_LOG_DIR

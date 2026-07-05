@@ -1,13 +1,17 @@
-# Qwen3.5-9B Device Farm Final Summary
+# Superseded Device Farm Summary Alias
 
-- Version: v18r2 optimization final.
+This file is retained only for compatibility with earlier generated report names.
+
+The official final report is `results/reports/final_devicefarm_report.md`.
+
+Current official decision:
+
+- Official final: v17 backend sweep.
 - Requirement 1 met: YES.
 - Requirement 2 met: YES.
-- Stock MNN CPU: prefill 45.6380 TPS, decode 2.27746 TPS, TPOT 439.086 ms.
-- Customlib v18r2: prefill 2.44242 TPS, decode 2.14021 TPS, TPOT 467.244 ms.
-- Custom/stock decode ratio: 0.9397x.
-- v18r2 vs v17 best custom decode: +10.65% TPS, -49.774 ms TPOT.
-- Speedup claimed: NO. Custom remains slower than stock MNN CPU.
-- Final report: `results/reports/final_devicefarm_report.md`.
-- Code walkthrough: `docs/kernel_library_code_walkthrough_final.md`.
-- Custom v18r2 run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1b18e97c-38fe-4581-97c8-b7688b5fbc91`.
+- Custom speedup claimed: NO.
+- v18r2 optimization candidate: rejected after the v19r2 output-quality guard.
+- Quality validation report: `results/reports/quality_validation_report.md`.
+- Rejection note: `results/reports/optimization_attempt_v18.md`.
+
+The rejected v18r2 performance candidate measured `2.14021` decode TPS, but custom quality validation failed with degenerate repeated token `220` outputs and exact token match `0 / 5`. Therefore it is not the official final result.

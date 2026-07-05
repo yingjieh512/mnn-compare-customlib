@@ -30,7 +30,14 @@
       "decode_tpot_ms_mean": 467.244,
       "prefill_tps_mean": 2.44242,
       "device_minutes_total": 39.69,
-      "evidence_json": "results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v18r2.json"
+      "evidence_json": "results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v18r2.json",
+      "accepted_as_official_final_after_quality_guard": false,
+      "quality_gate": {
+        "passed": false,
+        "custom_validation_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/e8582532-a655-4619-b348-9c07b5740f3d",
+        "stock_validation_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/28a7b8ce-cb81-4e31-8498-c59164e9cdaa",
+        "rejection_reason": "custom output was degenerate, mostly repeated token 220; exact token match 0/5; comparison gate 0/5"
+      }
     }
   ]
 }

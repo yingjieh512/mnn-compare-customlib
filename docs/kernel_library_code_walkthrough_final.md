@@ -1,10 +1,10 @@
 # Kernel Library Code Walkthrough Final
 
-This document describes the final v18r2 optimized custom inference library used for the Qwen3.5-9B AWS Device Farm comparison. It is written to match the measured code path and the final `BENCH_RESULT_JSON` evidence, not a planned architecture.
+This document describes the final v17 custom inference library used for the Qwen3.5-9B AWS Device Farm backend sweep. It is written to match the measured code path and the final `BENCH_RESULT_JSON` evidence, not a planned architecture.
 
 ## Final Measured Path
 
-The final custom Android benchmark sets `xq_options.use_mnn_fallback = 0` in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` and enters the public ABI in `customlib/include/xqwen35.h`. The official v18r2 custom run requested `cpu_vulkan_hybrid`, but the benchmark JSON reports `custom_backend_actual = cpu`; no custom Vulkan kernel is claimed.
+The final custom Android benchmark sets `xq_options.use_mnn_fallback = 0` in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` and enters the public ABI in `customlib/include/xqwen35.h`. The best v17 custom run requested `cpu_vulkan_hybrid`, but the benchmark JSON reports `custom_backend_actual = cpu`; no custom Vulkan kernel is claimed.
 
 The measured custom generation path is:
 
@@ -49,6 +49,13 @@ The optional MNN fallback connector still exists for API compatibility, but it i
 | Custom Android app | `android/benchmark_app` | Customlib instrumentation, JSON evidence, MNN hot-path trace evidence. |
 | Backend probe | `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` | Normalizes `cpu`, `vulkan`, and `cpu_vulkan_hybrid`; probes Vulkan availability without pretending kernels ran. |
 | AWS connector | `scripts/aws` and Android bootstrap | Uploads, schedules, downloads, and verifies Device Farm artifacts. |
+| Quality validation connector | `NativeBenchmark.runQualityValidation`, `NativeStockBenchmark.runQualityValidation`, `scripts/quality/compare_quality_validation.py` | Runs fixed token-ID prompts on Device Farm, dumps generated token IDs, and compares stock/custom output sanity separately from TPOT/TPS measurement. |
+
+## Output Quality Guard Connector
+
+The post-final v19r2 quality guard is intentionally separate from the performance measurement path. Android instrumentation sets `run_quality_validation=true`, then stock and custom JNI emit `BENCH_QUALITY_JSON` instead of `BENCH_RESULT_JSON`. The host script `scripts/quality/compare_quality_validation.py` compares exact generated token IDs, prefix length, token match rate, edit distance, invalid-token counts, empty outputs, and degenerate repetition.
+
+The v19r2 custom quality run was rejected. It still exercised the custom full decode path with `use_mnn_fallback = 0` and `fallback_op_families = []`, but produced repeated token `220` outputs for most prompts. That evidence is recorded in `results/reports/quality_validation_report.md`; it is not used to claim production-quality model behavior.
 
 ## Model Package And Loader
 
@@ -89,15 +96,6 @@ The v17 optimization pass added:
 - per-input activation group-sum precomputation so every row reuses the same `x_sum` values
 - streaming `gemvW4A16ArgmaxNeon` for `lm_head` greedy sampling, avoiding materializing the full logits vector in the measured W4 path
 - backend tags in each trace row so CPU/Vulkan/hybrid evidence cannot be conflated
-
-The accepted v18r2 optimization pass kept the same math path and reduced runtime overhead:
-
-- `embeddings_bf16.bin` is opened once in `CustomModel::load`, with a reusable BF16 row buffer for prompt and decode tokens
-- full-attention KV caches reserve prompt plus decode capacity after reset
-- attention score/max scratch buffers and FFN buffers are reused across tokens
-- append paths use reserve-aware resize/copy instead of repeated allocation and clearing
-
-The full-model Device Farm custom decode result improved from the accepted v17 baseline `1.93417` TPS / `517.018 ms` TPOT to v18r2 `2.14021` TPS / `467.244 ms` TPOT.
 
 The final Qwen3.5 shapes exercised by Device Farm include:
 
@@ -231,7 +229,7 @@ The stock baseline is implemented in `android/app/src/main/cpp/stock_benchmark_j
 
 The custom APK also contains an MNN hot-path trace helper in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp`. That helper runs after measured custom generation to collect MNN op type/name wall clock evidence. It is not on the measured custom generation path.
 
-The v17 stock CPU run completed and remains the same-device stock baseline. The v17 stock Vulkan-request run initialized the Adreno Vulkan stack and then crashed before `BENCH_RESULT_JSON`, so there is no stock Vulkan TPS/TPOT number.
+The v17 stock CPU run completed. The v17 stock Vulkan-request run initialized the Adreno Vulkan stack and then crashed before `BENCH_RESULT_JSON`, so there is no stock Vulkan TPS/TPOT number.
 
 ### Fallback Connector
 
@@ -257,7 +255,7 @@ For `vulkan` and `cpu_vulkan_hybrid`, it probes:
 - `dlopen("libvulkan.so")`
 - `dlsym("vkGetInstanceProcAddr")`
 
-The v18r2 Device Farm hybrid-request run reports probe success, but `full_or_hybrid_kernel_status = not_enabled_in_this_build` and `custom_backend_actual = cpu`. Therefore the final report does not claim custom Vulkan kernel execution.
+The v17 Device Farm hybrid-request run reports probe success, but `full_or_hybrid_kernel_status = not_enabled_in_this_build` and `custom_backend_actual = cpu`. Therefore the final report does not claim custom Vulkan kernel execution.
 
 ### Benchmark Connector
 
@@ -280,13 +278,12 @@ It records:
 
 The Android instrumentation bootstrap downloads split model parts, reassembles the zip, verifies SHA-256, unzips the package, and deletes the zip to preserve device storage.
 
-Final Device Farm evidence:
+Final v17 Device Farm evidence:
 
 - Stock CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7e44236c-db1a-4900-9fd8-7d8d7d654e28`
 - Stock Vulkan-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/067c195b-1e14-4bca-998d-c7d38a65c5c7`
 - Custom CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/8d765268-aacd-4f52-b845-f5370b4d522f`
-- Custom v17 CPU/Vulkan-hybrid baseline run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1de54984-c9d9-41d1-81c1-7eed941585ed`
-- Custom v18r2 optimized CPU/Vulkan-hybrid-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1b18e97c-38fe-4581-97c8-b7688b5fbc91`
+- Custom CPU/Vulkan-hybrid-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1de54984-c9d9-41d1-81c1-7eed941585ed`
 - Device: Samsung Galaxy S26 Ultra, SM-S948U1, Android 16
 - Full model SHA-256 verified on-device: `9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34`
 

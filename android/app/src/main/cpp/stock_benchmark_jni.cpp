@@ -12,6 +12,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #if defined(XQ_ENABLE_MNN)
@@ -24,6 +25,7 @@ constexpr int kThreads = 8;
 constexpr int kDefaultWarmupIterations = 1;
 constexpr int kDefaultMeasureIterations = 5;
 constexpr int kPromptToken = 16;
+constexpr int kQwen35VocabSize = 248320;
 
 std::string jstringToString(JNIEnv* env, jstring value) {
     if (!value) {
@@ -137,6 +139,108 @@ Stats computeStats(std::vector<double> values) {
     }
     stats.stdev = std::sqrt(sq / static_cast<double>(values.size()));
     return stats;
+}
+
+struct ValidationPrompt {
+    std::string id;
+    std::string prompt_kind;
+    std::string prompt_text_hint;
+    std::vector<int> tokens;
+};
+
+std::vector<ValidationPrompt> makeValidationPrompts() {
+    std::vector<ValidationPrompt> prompts;
+    prompts.push_back({"english_factual",
+                       "short_english_factual",
+                       "Fixed token-ID surrogate for: What is the capital of France?",
+                       {16, 198, 3923, 374, 279, 6864, 315, 9625, 30}});
+    prompts.push_back({"chinese_short",
+                       "short_chinese",
+                       "Fixed token-ID surrogate for a short Chinese prompt.",
+                       {16, 198, 104321, 3837, 34187, 111308, 1773}});
+    prompts.push_back({"code_like",
+                       "code_like",
+                       "Fixed token-ID surrogate for: def add(a, b):",
+                       {16, 198, 755, 912, 2948, 7, 64, 11, 293, 997}});
+    prompts.push_back({"math_reasoning",
+                       "math_reasoning",
+                       "Fixed token-ID surrogate for a short arithmetic reasoning prompt.",
+                       {16, 198, 17, 10, 17, 28, 30, 220}});
+    ValidationPrompt long_prompt;
+    long_prompt.id = "long_512_token_style";
+    long_prompt.prompt_kind = "long_512_token_style";
+    long_prompt.prompt_text_hint = "Fixed 512-token benchmark-style prompt surrogate.";
+    const int pattern[] = {16, 198, 220, 271, 25, 30, 13, 11, 17, 18, 19, 20, 21, 22, 23, 24};
+    long_prompt.tokens.reserve(512);
+    for (size_t i = 0; i < 512; ++i) {
+        long_prompt.tokens.push_back(pattern[i % (sizeof(pattern) / sizeof(pattern[0]))]);
+    }
+    prompts.push_back(std::move(long_prompt));
+    return prompts;
+}
+
+template <typename T>
+void appendIntArray(std::ostringstream& oss, const std::vector<T>& values, size_t limit) {
+    oss << "[";
+    const size_t count = std::min(values.size(), limit);
+    for (size_t i = 0; i < count; ++i) {
+        if (i > 0) {
+            oss << ",";
+        }
+        oss << static_cast<int64_t>(values[i]);
+    }
+    oss << "]";
+}
+
+template <typename T>
+int countInvalidTokens(const std::vector<T>& values, int vocab_size) {
+    int invalid = 0;
+    for (T value : values) {
+        const int64_t token = static_cast<int64_t>(value);
+        if (token < 0 || token >= vocab_size) {
+            ++invalid;
+        }
+    }
+    return invalid;
+}
+
+template <typename T>
+size_t longestRepeatedRun(const std::vector<T>& values) {
+    if (values.empty()) {
+        return 0;
+    }
+    size_t best = 1;
+    size_t current = 1;
+    for (size_t i = 1; i < values.size(); ++i) {
+        if (values[i] == values[i - 1]) {
+            ++current;
+        } else {
+            best = std::max(best, current);
+            current = 1;
+        }
+    }
+    return std::max(best, current);
+}
+
+template <typename T>
+size_t uniqueTokenCount(const std::vector<T>& values) {
+    std::unordered_set<int64_t> seen;
+    for (T value : values) {
+        seen.insert(static_cast<int64_t>(value));
+    }
+    return seen.size();
+}
+
+template <typename T>
+bool obviousDegenerateOutput(const std::vector<T>& values) {
+    if (values.size() < 8) {
+        return false;
+    }
+    const size_t longest_run = longestRepeatedRun(values);
+    if (longest_run >= values.size()) {
+        return true;
+    }
+    return uniqueTokenCount(values) <= 1;
 }
 
 void appendStats(std::ostringstream& oss, const Stats& stats) {
@@ -411,6 +515,171 @@ std::string runStockBenchmark(const std::string& model_dir,
     oss << "]}";
     return oss.str();
 }
+
+std::string stockQualityErrorJson(const std::string& model_dir,
+                                  const std::string& error,
+                                  const std::string& backend_requested,
+                                  int max_new_tokens) {
+    std::ostringstream oss;
+    oss << "{"
+        << "\"schema_version\":1,"
+        << "\"artifact_type\":\"quality_validation\","
+        << "\"engine\":\"mnn_stock\","
+        << "\"backend_requested\":\"" << jsonEscape(backend_requested) << "\","
+        << "\"backend_actual\":\"" << jsonEscape(backend_requested) << "\","
+        << "\"status\":\"error\","
+        << "\"quality_gate_passed\":false,"
+        << "\"error\":\"" << jsonEscape(error) << "\","
+        << "\"validation\":{\"prompt_set\":\"small_fixed_token_ids\","
+        << "\"validation_compare_to_custom\":true,"
+        << "\"tokenizer_decode_available\":true,"
+        << "\"validation_dump_tokens\":true,"
+        << "\"validation_dump_text\":true,"
+        << "\"max_new_tokens\":" << max_new_tokens
+        << ",\"temperature\":0,\"top_k\":1,\"top_p\":1},"
+        << "\"artifact\":{\"model_dir\":\"" << jsonEscape(model_dir) << "\"}"
+        << "}";
+    return oss.str();
+}
+
+std::string runStockQualityValidation(const std::string& model_dir,
+                                      const std::string& backend_requested,
+                                      int max_new_tokens) {
+    const int capped_max_new_tokens = std::max(1, std::min(64, max_new_tokens));
+    const std::string config_path = model_dir + "/llm_config.json";
+    if (model_dir.empty()) {
+        return stockQualityErrorJson(model_dir, "model_dir is empty", backend_requested, capped_max_new_tokens);
+    }
+    if (!fileExists(config_path)) {
+        return stockQualityErrorJson(model_dir, "missing llm_config.json", backend_requested, capped_max_new_tokens);
+    }
+
+    const std::string tmp_path = model_dir + "/tmp";
+    ensureDir(tmp_path);
+
+    std::unique_ptr<MNN::Transformer::Llm, void (*)(MNN::Transformer::Llm*)> llm(
+        MNN::Transformer::Llm::createLLM(config_path),
+        MNN::Transformer::Llm::destroy);
+    if (!llm) {
+        return stockQualityErrorJson(model_dir,
+                                     "Llm::createLLM returned null",
+                                     backend_requested,
+                                     capped_max_new_tokens);
+    }
+
+    std::string error;
+    if (!setLlmConfig(llm.get(), "{\"tokenizer_file\":\"tokenizer.mtok\"}", "tokenizer_file", &error) ||
+        !setLlmConfig(llm.get(), "{\"async\":false}", "async", &error) ||
+        !setLlmConfig(llm.get(), "{\"reuse_kv\":false}", "reuse_kv", &error) ||
+        !setLlmConfig(llm.get(), "{\"precision\":\"low\"}", "precision", &error) ||
+        !setLlmConfig(llm.get(), "{\"memory\":\"low\"}", "memory", &error) ||
+        !setLlmConfig(llm.get(), "{\"power\":\"normal\"}", "power", &error) ||
+        !setLlmConfig(llm.get(), "{\"backend_type\":\"" + jsonEscape(backend_requested) + "\"}", "backend_type", &error) ||
+        !setLlmConfig(llm.get(), "{\"thread_num\":8}", "thread_num", &error) ||
+        !setLlmConfig(llm.get(), "{\"dynamic_option\":8}", "dynamic_option", &error) ||
+        !setLlmConfig(llm.get(), "{\"attention_mode\":8}", "attention_mode", &error) ||
+        !setLlmConfig(llm.get(), "{\"use_mmap\":true}", "use_mmap", &error) ||
+        !setLlmConfig(llm.get(), "{\"tmp_path\":\"" + jsonEscape(tmp_path) + "\"}", "tmp_path", &error) ||
+        !setLlmConfig(llm.get(), "{\"cpu_sme2_neon_division_ratio\":41}", "cpu_sme2_neon_division_ratio", &error) ||
+        !setLlmConfig(llm.get(), "{\"cpu_sme_core_num\":2}", "cpu_sme_core_num", &error)) {
+        return stockQualityErrorJson(model_dir, error, backend_requested, capped_max_new_tokens);
+    }
+
+    if (!llm->load()) {
+        return stockQualityErrorJson(model_dir, "Llm::load failed", backend_requested, capped_max_new_tokens);
+    }
+
+    const std::vector<ValidationPrompt> prompts = makeValidationPrompts();
+    bool all_ok = true;
+    std::ostringstream prompt_json;
+    prompt_json << "[";
+    for (size_t i = 0; i < prompts.size(); ++i) {
+        const ValidationPrompt& prompt = prompts[i];
+        if (i > 0) {
+            prompt_json << ",";
+        }
+        llm->reset();
+        llm->response(prompt.tokens, nullptr, nullptr, capped_max_new_tokens);
+        const MNN::Transformer::LlmContext* context = llm->getContext();
+        std::vector<int> generated;
+        std::string status = "missing_context";
+        std::string decoded_text;
+        int64_t prefill_us = 0;
+        int64_t decode_us = 0;
+        if (context) {
+            status = statusName(context->status);
+            generated = context->output_tokens;
+            if (generated.size() > static_cast<size_t>(capped_max_new_tokens)) {
+                generated.resize(static_cast<size_t>(capped_max_new_tokens));
+            }
+            decoded_text = context->generate_str;
+            prefill_us = context->prefill_us;
+            decode_us = context->decode_us;
+        }
+        const int invalid_count = countInvalidTokens(generated, kQwen35VocabSize);
+        const bool empty_output = generated.empty();
+        const bool degenerate = obviousDegenerateOutput(generated);
+        const bool terminal_ok = context && terminalStatusOk(context->status);
+        const bool prompt_ok = terminal_ok && invalid_count == 0 && !empty_output && !degenerate;
+        all_ok = all_ok && prompt_ok;
+
+        prompt_json << "{"
+                    << "\"id\":\"" << jsonEscape(prompt.id) << "\","
+                    << "\"prompt_kind\":\"" << jsonEscape(prompt.prompt_kind) << "\","
+                    << "\"prompt_text_hint\":\"" << jsonEscape(prompt.prompt_text_hint) << "\","
+                    << "\"raw_text_prompt_available\":false,"
+                    << "\"prompt_token_count\":" << prompt.tokens.size() << ","
+                    << "\"prompt_token_ids\":";
+        appendIntArray(prompt_json, prompt.tokens, prompt.tokens.size());
+        prompt_json << ",\"generated_token_count\":" << generated.size()
+                    << ",\"generated_token_ids\":";
+        appendIntArray(prompt_json, generated, generated.size());
+        prompt_json << ",\"decoded_text_available\":" << (!decoded_text.empty() ? "true" : "false")
+                    << ",\"decoded_generated_text\":\"" << jsonEscape(decoded_text) << "\","
+                    << "\"status\":\"" << jsonEscape(status) << "\","
+                    << "\"invalid_token_count\":" << invalid_count << ","
+                    << "\"empty_output\":" << (empty_output ? "true" : "false") << ","
+                    << "\"longest_repeated_run\":" << longestRepeatedRun(generated) << ","
+                    << "\"unique_token_count\":" << uniqueTokenCount(generated) << ","
+                    << "\"obvious_degenerate_output\":" << (degenerate ? "true" : "false") << ","
+                    << "\"prefill_us\":" << prefill_us << ","
+                    << "\"decode_us\":" << decode_us
+                    << "}";
+    }
+    prompt_json << "]";
+
+    std::ostringstream oss;
+    oss << "{"
+        << "\"schema_version\":1,"
+        << "\"artifact_type\":\"quality_validation\","
+        << "\"engine\":\"mnn_stock\","
+        << "\"backend_requested\":\"" << jsonEscape(backend_requested) << "\","
+        << "\"backend_actual\":\"" << jsonEscape(backend_requested) << "\","
+        << "\"status\":\"" << (all_ok ? "ok" : "error") << "\","
+        << "\"quality_gate_passed\":" << (all_ok ? "true" : "false") << ","
+        << "\"model\":{\"hf_repo\":\"Qwen/Qwen3.5-9B\","
+        << "\"hf_revision\":\"c202236235762e1c871ad0ccb60c8ee5ba337b9a\","
+        << "\"format\":\"mnn_skip_weight\","
+        << "\"vocab_size_assumed\":" << kQwen35VocabSize << "},"
+        << "\"artifact\":{\"model_dir\":\"" << jsonEscape(model_dir) << "\","
+        << "\"config_path\":\"" << jsonEscape(config_path) << "\"},"
+        << "\"runtime\":{\"threads\":" << kThreads
+        << ",\"backend_type_configured\":\"" << jsonEscape(backend_requested) << "\","
+        << "\"backend_actual_verified\":false,"
+        << "\"precision\":\"low\",\"memory\":\"low\",\"power\":\"normal\","
+        << "\"use_mmap\":true,\"reuse_kv\":false},"
+        << "\"validation\":{\"prompt_set\":\"small_fixed_token_ids\","
+        << "\"validation_compare_to_custom\":true,"
+        << "\"tokenizer_decode_available\":true,"
+        << "\"validation_dump_tokens\":true,"
+        << "\"validation_dump_text\":true,"
+        << "\"max_new_tokens\":" << capped_max_new_tokens
+        << ",\"temperature\":0,\"top_k\":1,\"top_p\":1,"
+        << "\"note\":\"Fixed token-ID prompts are used so stock MNN and customlib receive identical prompt IDs.\"},"
+        << "\"prompts\":" << prompt_json.str()
+        << "}";
+    return oss.str();
+}
 #endif
 
 }  // namespace
@@ -451,5 +720,34 @@ Java_com_example_xqwen35stock_NativeStockBenchmark_runBenchmark(JNIEnv* env,
 
     __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_RESULT_JSON %s", json.c_str());
     __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_END engine=mnn_stock");
+    return env->NewStringUTF(json.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_example_xqwen35stock_NativeStockBenchmark_runQualityValidation(JNIEnv* env,
+                                                                        jclass,
+                                                                        jstring model_dir,
+                                                                        jstring backend,
+                                                                        jint max_new_tokens) {
+    const std::string model = jstringToString(env, model_dir);
+    const std::string backend_requested = normalizeStockBackend(jstringToString(env, backend));
+    __android_log_print(ANDROID_LOG_INFO,
+                        "XQBENCH",
+                        "QUALITY_START engine=mnn_stock model_dir=%s backend=%s",
+                        model.c_str(),
+                        backend_requested.c_str());
+#if defined(XQ_ENABLE_MNN)
+    std::string json = runStockQualityValidation(model,
+                                                 backend_requested,
+                                                 static_cast<int>(max_new_tokens));
+#else
+    std::string json = errorJson(model,
+                                 "stock JNI was built without XQ_ENABLE_MNN",
+                                 backend_requested,
+                                 0,
+                                 static_cast<int>(max_new_tokens));
+#endif
+    __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_QUALITY_JSON %s", json.c_str());
+    __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "QUALITY_END engine=mnn_stock");
     return env->NewStringUTF(json.c_str());
 }

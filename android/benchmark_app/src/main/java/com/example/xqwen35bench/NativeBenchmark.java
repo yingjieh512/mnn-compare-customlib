@@ -14,4 +14,9 @@ public final class NativeBenchmark {
             int maxNewTokens,
             int warmupIterations,
             int measuredIterations);
+
+    public static native String runQualityValidation(
+            String modelDir,
+            String customBackend,
+            int maxNewTokens);
 }
