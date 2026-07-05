@@ -19,9 +19,12 @@ public final class BenchmarkInstrumentationTest {
         Bundle args = InstrumentationRegistry.getArguments();
         int promptTokens = parseInt(args.getString("prompt_tokens", ""), 512);
         int maxNewTokens = parseInt(args.getString("max_new_tokens", ""), 256);
+        int warmupIterations = parseInt(args.getString("warmup_iterations", ""), 1);
+        int measuredIterations = parseInt(args.getString("measured_iterations", ""), 5);
         File root = context.getExternalFilesDir(null);
         File dir = ModelBootstrap.resolveModelDir(context);
-        String json = NativeBenchmark.runBenchmark(dir.getAbsolutePath(), promptTokens, maxNewTokens);
+        String json = NativeBenchmark.runBenchmark(
+                dir.getAbsolutePath(), promptTokens, maxNewTokens, warmupIterations, measuredIterations);
         Log.i("XQBENCH", "BENCH_RESULT_JSON " + json);
         if (root != null) {
             File artifactDir = new File(root, "bench_artifacts");
@@ -37,6 +40,18 @@ public final class BenchmarkInstrumentationTest {
         }
         if (!json.contains("\"hotpath_replaced\":true")) {
             throw new AssertionError("custom hotpath replacement evidence missing: " + json);
+        }
+        if (!json.contains("\"full_custom_decode\":true")) {
+            throw new AssertionError("full custom decode evidence missing: " + json);
+        }
+        if (!json.contains("\"fallback_op_families\":[]")) {
+            throw new AssertionError("custom fallback list is not empty: " + json);
+        }
+        if (!json.contains("\"calls_mnn_llm_response_for_measured_generation\":false")) {
+            throw new AssertionError("custom path MNN-response evidence missing: " + json);
+        }
+        if (!json.contains("\"lm_head_custom\"") || !json.contains("\"sampling_greedy_custom\"")) {
+            throw new AssertionError("custom lm_head/sampling trace evidence missing: " + json);
         }
     }
 

@@ -1,47 +1,118 @@
 {
-  "schema_version": 1,
-  "status": "complete",
-  "device": {
-    "name": "Samsung Galaxy S26 Ultra",
-    "model_id": "SM-S948U1",
-    "os": "Android 16",
-    "device_pool_arn": "arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213"
+  "generated_utc": "2026-07-05T02:52:09.621699+00:00",
+  "devicefarm": {
+    "project_arn": "arn:aws:devicefarm:us-west-2:884244642857:project:64d2cc31-abd6-49f8-97da-162f82410bc0",
+    "device_pool_arn": "arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213",
+    "device_arn": "arn:aws:devicefarm:us-west-2::device:536B9FDAEAA14A11B504A3ECC86DA717",
+    "device": "Samsung Galaxy S26 Ultra / SM-S948U1 / Android 16",
+    "stock_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/baed9f8e-2a52-4b93-8584-60c305b73757",
+    "custom_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7bc0f1d8-7640-4574-8309-da6bdb9fa642",
+    "stock_result": "PASSED",
+    "custom_result": "PASSED",
+    "stock_device_minutes_total": 26.01,
+    "custom_device_minutes_total": 129.34
   },
   "model": {
     "hf_repo": "Qwen/Qwen3.5-9B",
     "hf_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
-    "mnn_zip_sha256": "fee6c0a893836afa0bae83762c8b3800d71723a7e02c006c49605a8fa2866d1b",
-    "format": "mnn_skip_weight_no_embeddings_zip_plus_sparse_embedding_on_device",
-    "quantization": "w4a16_groupwise bits=4 group_size=64"
+    "quantization": "w4a16_groupwise, bits=4, group_size=64",
+    "zip_sha256": "9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34",
+    "split_part_bytes": [
+      4500000000,
+      4500000000,
+      2266405198
+    ],
+    "split_part_sha256": [
+      "3b13bdc4a158b6745f58cfe0dc4c31e485990a50f24d8f14809f5df0e2aa15dc",
+      "60b8c1d898e4db8b626f750660174f20c05a7e28a43ca11192d58494c3e9211f",
+      "32d8becc5a77be798a9bc8a3c26509e419942b57aad59f8d4b55310de7248b18"
+    ],
+    "zip_total_bytes": 11266405198
   },
-  "runs": {
-    "stock_mnn": {
-      "devicefarm_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/e8a525d2-aa96-402b-ad2e-6d8edc203bfa",
-      "devicefarm_result": "FAILED_due_to_spec_false_positive_but_instrumentation_OK",
-      "json_source": "results\\raw\\final_real_qwen35_devicefarm_v10\\stock_mnn_benchmark.json",
-      "engine": "mnn_stock",
-      "backend": "cpu",
-      "prefill_median_tok_s": 45.6044,
-      "decode_median_tok_s": 2.29946,
-      "measured_iterations": 5,
-      "load_wall_ms": 7947.17
+  "same_settings": {
+    "stock_generation": {
+      "prompt_tokens_requested": 512,
+      "max_new_tokens": 256,
+      "prompt_token_id": 16,
+      "temperature": 0,
+      "top_k": 1,
+      "top_p": 1,
+      "batch_size": 1
     },
-    "customlib": {
-      "devicefarm_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/940a7636-3950-48b4-9dbc-d9498a4f3e30",
-      "devicefarm_result": "PASSED",
-      "json_source": "results\\raw\\final_real_qwen35_devicefarm_v10\\customlib_benchmark.json",
-      "engine": "customlib",
-      "backend": "mnn_fallback_cpu",
-      "prefill_median_tok_s": 45.743,
-      "decode_median_tok_s": 2.25523,
-      "measured_iterations": 5,
-      "load_ms": 8438.4,
-      "selected_kernels": "customlib_api+mnn_llm_fallback; generated_arm64_kernels_present; hotpath_not_replaced"
+    "custom_generation": {
+      "prompt_tokens_requested": 512,
+      "max_new_tokens": 256,
+      "prompt_token_id": 16,
+      "temperature": 0,
+      "top_k": 1,
+      "top_p": 1,
+      "batch_size": 1
+    },
+    "stock_iterations": {
+      "warmup": 1,
+      "measured": 3,
+      "target_measured": 3
+    },
+    "custom_iterations": {
+      "warmup": 1,
+      "measured": 3,
+      "target_measured": 3
     }
   },
-  "comparison": {
-    "prefill_custom_over_stock": 1.0030391804299585,
-    "decode_custom_over_stock": 0.980765049185461,
-    "decode_delta_tok_s": -0.04422999999999977
+  "metrics": {
+    "stock_prefill_tps_mean": 45.096,
+    "stock_decode_tps_mean": 2.28587,
+    "stock_decode_tpot_ms_mean": 437.47,
+    "custom_prefill_tps_mean": 0.486717,
+    "custom_decode_tps_mean": 0.424895,
+    "custom_decode_tpot_ms_mean": 2353.52,
+    "custom_stock_decode_ratio": 0.18587889949997158,
+    "stock_custom_decode_ratio": 5.379846785676461,
+    "custom_stock_prefill_ratio": 0.010792908461947845
+  },
+  "custom_evidence": {
+    "selected_kernels": {
+      "summary": "custom_decode_loop;hotpath_replaced=true;full_custom_decode=true;linear=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,linear_attn_qkv_a_b_z_out,lm_head;rmsnorm=custom;rope=custom;attention=custom_gqa_decode;linear_attention_state=custom_gated_delta;sampling=custom_greedy;prefill_kv_build=custom;fallback_ops=none",
+      "hotpath_replaced": true,
+      "full_custom_decode": true,
+      "replaced_op_families": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj",
+        "rmsnorm",
+        "rope",
+        "attention",
+        "linear_attention_state",
+        "lm_head",
+        "sampling",
+        "prefill_kv_build"
+      ],
+      "fallback_op_families": []
+    },
+    "custom_path": {
+      "calls_mnn_llm_response_for_measured_generation": false,
+      "use_mnn_fallback": 0,
+      "decode_loop": "xq_session::generate -> xq_prefill/xq_decode_one -> CustomModel::prefill/runLayer/sampleGreedy",
+      "weight_format": "xq4_groupwise_w4a16"
+    },
+    "mnn_hotpath_trace_status": "ok",
+    "custom_kernel_microbench_status": "ok"
+  },
+  "artifacts": {
+    "final_report_md": "results/reports/final_devicefarm_report.md",
+    "code_walkthrough_md": "docs/kernel_library_code_walkthrough_final.md",
+    "presentation_pptx": "results/reports/qwen35_9b_full_custom_v16_presentation.pptx",
+    "presentation_contact_sheet_png": "results/reports/qwen35_9b_full_custom_v16_presentation_contact_sheet.png"
+  },
+  "verdict": {
+    "faithful_benchmark": true,
+    "requirement_1_met": true,
+    "requirement_2_met": true,
+    "custom_speedup_claim_allowed": false,
+    "speedup_verdict": "No speedup claimed. Custom decode is 0.1859x stock TPS; stock is 5.38x faster by decode TPS."
   }
 }

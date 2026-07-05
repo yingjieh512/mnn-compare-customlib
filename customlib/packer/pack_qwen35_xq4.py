@@ -35,7 +35,7 @@ def tensors_for_pack(config: Dict, limit_layers: int = 0) -> Tuple[List[str], Li
     if limit_layers > 0:
         n_layers = min(n_layers, limit_layers)
     layer_types = config["layer_types"]
-    matrix_names: List[str] = []
+    matrix_names: List[str] = ["lm_head.weight"]
     vector_names: List[str] = ["model.language_model.norm.weight"]
     for layer in range(n_layers):
         prefix = f"model.language_model.layers.{layer}"
@@ -63,11 +63,16 @@ def tensors_for_pack(config: Dict, limit_layers: int = 0) -> Tuple[List[str], Li
             matrix_names.extend(
                 [
                     f"{prefix}.linear_attn.in_proj_qkv.weight",
+                    f"{prefix}.linear_attn.in_proj_a.weight",
+                    f"{prefix}.linear_attn.in_proj_b.weight",
                     f"{prefix}.linear_attn.in_proj_z.weight",
                     f"{prefix}.linear_attn.out_proj.weight",
                 ]
             )
             vector_names.append(f"{prefix}.linear_attn.norm.weight")
+            vector_names.append(f"{prefix}.linear_attn.conv1d.weight")
+            vector_names.append(f"{prefix}.linear_attn.A_log")
+            vector_names.append(f"{prefix}.linear_attn.dt_bias")
     return matrix_names, vector_names
 
 
@@ -202,10 +207,16 @@ def main() -> int:
         "num_attention_heads": int(config["num_attention_heads"]),
         "num_key_value_heads": int(config["num_key_value_heads"]),
         "head_dim": int(config["head_dim"]),
+        "linear_key_head_dim": int(config.get("linear_key_head_dim", 128)),
+        "linear_value_head_dim": int(config.get("linear_value_head_dim", 128)),
+        "linear_num_key_heads": int(config.get("linear_num_key_heads", 16)),
+        "linear_num_value_heads": int(config.get("linear_num_value_heads", 32)),
+        "linear_conv_kernel_dim": int(config.get("linear_conv_kernel_dim", 4)),
         "vocab_size": int(config["vocab_size"]),
         "layer_types": config["layer_types"][: int(args.limit_layers or config["num_hidden_layers"])],
         "rms_norm_eps": float(config["rms_norm_eps"]),
         "rope_theta": float(config["rope_parameters"]["rope_theta"]),
+        "partial_rotary_factor": float(config["rope_parameters"].get("partial_rotary_factor", 1.0)),
         "matrices": matrices,
         "vectors": vectors,
     }

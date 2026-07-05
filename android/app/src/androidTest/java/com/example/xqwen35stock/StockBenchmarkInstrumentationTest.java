@@ -19,9 +19,12 @@ public final class StockBenchmarkInstrumentationTest {
         Bundle args = InstrumentationRegistry.getArguments();
         int promptTokens = parseInt(args.getString("prompt_tokens", ""), 512);
         int maxNewTokens = parseInt(args.getString("max_new_tokens", ""), 256);
+        int warmupIterations = parseInt(args.getString("warmup_iterations", ""), 1);
+        int measuredIterations = parseInt(args.getString("measured_iterations", ""), 5);
         File root = context.getExternalFilesDir(null);
         File dir = ModelBootstrap.resolveModelDir(context);
-        String json = NativeStockBenchmark.runBenchmark(dir.getAbsolutePath(), promptTokens, maxNewTokens);
+        String json = NativeStockBenchmark.runBenchmark(
+                dir.getAbsolutePath(), promptTokens, maxNewTokens, warmupIterations, measuredIterations);
         Log.i("XQBENCH", "BENCH_RESULT_JSON " + json);
         if (root != null) {
             File artifactDir = new File(root, "bench_artifacts");

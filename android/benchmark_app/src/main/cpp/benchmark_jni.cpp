@@ -26,8 +26,8 @@
 namespace {
 
 constexpr int kThreads = 8;
-constexpr int kWarmupIterations = 1;
-constexpr int kMeasureIterations = 5;
+constexpr int kDefaultWarmupIterations = 1;
+constexpr int kDefaultMeasureIterations = 5;
 constexpr int kPromptToken = 16;
 constexpr int kTracePromptTokens = 512;
 constexpr int kTraceMaxNewTokens = 16;
@@ -669,10 +669,12 @@ std::string makeJson(const std::string& model_dir,
                      const std::string& terminal_error,
                      int prompt_tokens,
                      int max_new_tokens,
+                     int warmup_iterations,
+                     int measure_iterations,
                      const std::string& custom_kernel_microbench_json,
                      const std::string& mnn_hotpath_trace_json,
                      const std::string& kernel_trace_json) {
-    const bool ok = terminal_status == XQ_OK && prefill_tps.size() == static_cast<size_t>(kMeasureIterations);
+    const bool ok = terminal_status == XQ_OK && prefill_tps.size() == static_cast<size_t>(measure_iterations);
     const Stats prefill_stats = computeStats(prefill_tps);
     const Stats decode_stats = computeStats(decode_tps);
     std::vector<double> total_ms;
@@ -696,7 +698,7 @@ std::string makeJson(const std::string& model_dir,
     }
     oss << "\"model\":{\"hf_repo\":\"Qwen/Qwen3.5-9B\","
         << "\"hf_revision\":\"c202236235762e1c871ad0ccb60c8ee5ba337b9a\","
-        << "\"format\":\"mnn_skip_weight\","
+        << "\"format\":\"xqwen35_custom_w4a16\","
         << "\"quantization\":{\"bits\":4,\"group_size\":64,\"scheme\":\"w4a16_groupwise\"}},"
         << "\"artifact\":{\"model_dir\":\"" << jsonEscape(model_dir) << "\"},"
         << "\"runtime\":{\"threads\":" << kThreads
@@ -705,17 +707,19 @@ std::string makeJson(const std::string& model_dir,
         << "\"selected_kernels\":{\"summary\":\""
         << jsonEscape(runs.empty() ? initial_metrics.selected_kernels : runs.back().metrics.selected_kernels)
         << "\",\"hotpath_replaced\":true,"
-        << "\"replaced_op_families\":[\"q_proj\",\"k_proj\",\"v_proj\",\"o_proj\",\"gate_proj\",\"up_proj\",\"down_proj\",\"rmsnorm\",\"rope\",\"linear_attn_qkv_z_out\"],"
-        << "\"fallback_op_families\":[\"attention\",\"linear_attention_state\",\"lm_head\",\"sampling\",\"prefill_kv_build\"]}},"
+        << "\"full_custom_decode\":true,"
+        << "\"replaced_op_families\":[\"q_proj\",\"k_proj\",\"v_proj\",\"o_proj\",\"gate_proj\",\"up_proj\",\"down_proj\",\"rmsnorm\",\"rope\",\"attention\",\"linear_attention_state\",\"lm_head\",\"sampling\",\"prefill_kv_build\"],"
+        << "\"fallback_op_families\":[]}},"
         << "\"custom_path\":{\"calls_mnn_llm_response_for_measured_generation\":false,"
-        << "\"decode_loop\":\"xq_session::generate -> xq_prefill/xq_decode_one -> CustomModel::runLayer\","
+        << "\"use_mnn_fallback\":0,"
+        << "\"decode_loop\":\"xq_session::generate -> xq_prefill/xq_decode_one -> CustomModel::prefill/runLayer/sampleGreedy\","
         << "\"weight_format\":\"xq4_groupwise_w4a16\"},"
         << "\"generation\":{\"prompt_tokens_requested\":" << prompt_tokens
         << ",\"max_new_tokens\":" << max_new_tokens
         << ",\"prompt_token_id\":" << kPromptToken
         << ",\"temperature\":0,\"top_k\":1,\"top_p\":1,\"batch_size\":1},"
-        << "\"iterations\":{\"warmup\":" << kWarmupIterations
-        << ",\"measured\":" << prefill_tps.size() << ",\"target_measured\":" << kMeasureIterations << "},"
+        << "\"iterations\":{\"warmup\":" << warmup_iterations
+        << ",\"measured\":" << prefill_tps.size() << ",\"target_measured\":" << measure_iterations << "},"
         << "\"timing\":{\"load_ms\":" << initial_metrics.load_ms
         << ",\"total_generate_ms\":";
     appendStats(oss, total_stats);
@@ -759,9 +763,13 @@ Java_com_example_xqwen35bench_NativeBenchmark_runBenchmark(JNIEnv* env,
                                                            jclass,
                                                            jstring model_dir,
                                                            jint prompt_tokens,
-                                                           jint max_new_tokens) {
+                                                           jint max_new_tokens,
+                                                           jint warmup_iterations,
+                                                           jint measure_iterations) {
     const std::string model = jstringToString(env, model_dir);
     __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_START engine=customlib model_dir=%s", model.c_str());
+    const int warmups = std::max(0, static_cast<int>(warmup_iterations));
+    const int measured = std::max(1, static_cast<int>(measure_iterations));
 
     xq_options options{};
     options.struct_size = sizeof(options);
@@ -793,11 +801,11 @@ Java_com_example_xqwen35bench_NativeBenchmark_runBenchmark(JNIEnv* env,
     std::string terminal_error;
     xq_status terminal_status = XQ_OK;
 
-    for (int i = 0; i < kWarmupIterations + kMeasureIterations; ++i) {
+    for (int i = 0; i < warmups + measured; ++i) {
         xq_reset(session);
         Run run;
         run.index = i;
-        run.warmup = i < kWarmupIterations;
+        run.warmup = i < warmups;
         run.metrics.struct_size = sizeof(run.metrics);
         std::fill(output.begin(), output.end(), 0);
         run.status = xq_generate(session,
@@ -854,6 +862,8 @@ Java_com_example_xqwen35bench_NativeBenchmark_runBenchmark(JNIEnv* env,
                                 terminal_error,
                                 static_cast<int>(prompt_tokens),
                                 static_cast<int>(max_new_tokens),
+                                warmups,
+                                measured,
                                 custom_kernel_microbench_json,
                                 mnn_hotpath_trace_json,
                                 kernel_trace_json);

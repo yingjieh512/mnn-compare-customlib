@@ -65,13 +65,40 @@ endif()
 
 if(XQ_BUILD_TESTS AND NOT ANDROID)
   enable_testing()
+  get_filename_component(XQ_TEST_COMPILER_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
 
-  add_executable(xq_kernel_correctness customlib/tests/kernel_correctness/test_kernels.cpp)
+  set(XQ_KERNEL_TEST_SOURCES
+    customlib/kernels/reference/ref_gemv.cpp
+    customlib/kernels/reference/ref_rmsnorm.cpp
+    customlib/kernels/reference/ref_rope.cpp
+    customlib/kernels/reference/ref_attention.cpp
+    customlib/kernels/reference/ref_delta.cpp
+    customlib/kernels/generated/generated_dispatch.cpp
+    customlib/kernels/generated/arm64_neon/xq_gemv_w4a16_neon.cpp
+    customlib/kernels/generated/arm64_neon/xq_gemv_w3a16_neon.cpp
+    customlib/kernels/generated/arm64_neon/xq_gemv_w2a16_neon.cpp
+  )
+
+  add_executable(xq_kernel_correctness
+    customlib/tests/kernel_correctness/test_kernels.cpp
+    ${XQ_KERNEL_TEST_SOURCES}
+  )
   target_link_libraries(xq_kernel_correctness PRIVATE xqwen35)
   target_include_directories(xq_kernel_correctness PRIVATE customlib/kernels)
   add_test(NAME xq_kernel_correctness COMMAND xq_kernel_correctness)
 
-  add_executable(xq_runtime_correctness customlib/tests/runtime_correctness/test_runtime.cpp)
+  add_executable(xq_runtime_correctness
+    customlib/tests/runtime_correctness/test_runtime.cpp
+    customlib/kernels/reference/ref_gemv.cpp
+  )
   target_link_libraries(xq_runtime_correctness PRIVATE xqwen35)
+  add_custom_command(TARGET xq_runtime_correctness POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:xqwen35>
+            $<TARGET_FILE_DIR:xq_runtime_correctness>
+  )
   add_test(NAME xq_runtime_correctness COMMAND xq_runtime_correctness)
+  set_tests_properties(xq_runtime_correctness PROPERTIES
+    ENVIRONMENT "PATH=${XQ_TEST_COMPILER_DIR}\\;$<TARGET_FILE_DIR:xqwen35>"
+  )
 endif()

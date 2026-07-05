@@ -1,6 +1,7 @@
 #include "custom_model.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -196,6 +197,25 @@ float silu(float x) {
     return x / (1.0f + std::exp(-x));
 }
 
+float sigmoid(float x) {
+    if (x >= 0.0f) {
+        const float z = std::exp(-x);
+        return 1.0f / (1.0f + z);
+    }
+    const float z = std::exp(x);
+    return z / (1.0f + z);
+}
+
+float softplus(float x) {
+    if (x > 20.0f) {
+        return x;
+    }
+    if (x < -20.0f) {
+        return std::exp(x);
+    }
+    return std::log1p(std::exp(x));
+}
+
 void addResidual(std::vector<float>* hidden, const std::vector<float>& delta) {
     const size_t n = std::min(hidden->size(), delta.size());
     for (size_t i = 0; i < n; ++i) {
@@ -217,11 +237,48 @@ void applyHeadRms(float* x, const float* weight, int heads, int head_dim, float 
     }
 }
 
-void applyRopeVector(float* x, int heads, int head_dim, int position, float theta) {
+void l2NormalizeHeads(float* x, int heads, int head_dim) {
     for (int h = 0; h < heads; ++h) {
         float* base = x + h * head_dim;
-        for (int i = 0; i + 1 < head_dim; i += 2) {
-            const float inv_freq = std::pow(theta, -static_cast<float>(i) / static_cast<float>(head_dim));
+        float sum = 0.0f;
+        for (int d = 0; d < head_dim; ++d) {
+            sum += base[d] * base[d];
+        }
+        const float inv = 1.0f / std::sqrt(std::max(sum, 1.0e-12f));
+        for (int d = 0; d < head_dim; ++d) {
+            base[d] *= inv;
+        }
+    }
+}
+
+void applyGatedHeadRms(const float* input,
+                       const float* weight,
+                       const float* gate,
+                       int heads,
+                       int head_dim,
+                       float eps,
+                       float* output) {
+    for (int h = 0; h < heads; ++h) {
+        const float* in = input + h * head_dim;
+        const float* g = gate + h * head_dim;
+        float* out = output + h * head_dim;
+        float sum = 0.0f;
+        for (int d = 0; d < head_dim; ++d) {
+            sum += in[d] * in[d];
+        }
+        const float inv = 1.0f / std::sqrt(sum / static_cast<float>(head_dim) + eps);
+        for (int d = 0; d < head_dim; ++d) {
+            out[d] = in[d] * inv * weight[d] * silu(g[d]);
+        }
+    }
+}
+
+void applyRopeVector(float* x, int heads, int head_dim, int rotary_dim, int position, float theta) {
+    const int active_dim = std::max(0, std::min(head_dim, rotary_dim));
+    for (int h = 0; h < heads; ++h) {
+        float* base = x + h * head_dim;
+        for (int i = 0; i + 1 < active_dim; i += 2) {
+            const float inv_freq = std::pow(theta, -static_cast<float>(i) / static_cast<float>(active_dim));
             const float angle = static_cast<float>(position) * inv_freq;
             const float c = std::cos(angle);
             const float s = std::sin(angle);
@@ -279,6 +336,19 @@ bool CustomModel::load(const std::string& model_dir, std::string* error) {
     num_attention_heads_ = findJsonInt(manifest, "num_attention_heads", num_attention_heads_);
     num_key_value_heads_ = findJsonInt(manifest, "num_key_value_heads", num_key_value_heads_);
     head_dim_ = findJsonInt(manifest, "head_dim", head_dim_);
+    const float partial_rotary = findJsonFloat(manifest, "partial_rotary_factor", 0.25f);
+    rotary_dim_ = std::max(2, static_cast<int>(std::round(static_cast<float>(head_dim_) * partial_rotary)));
+    if ((rotary_dim_ & 1) != 0) {
+        --rotary_dim_;
+    }
+    linear_key_head_dim_ = findJsonInt(manifest, "linear_key_head_dim", linear_key_head_dim_);
+    linear_value_head_dim_ = findJsonInt(manifest, "linear_value_head_dim", linear_value_head_dim_);
+    linear_num_key_heads_ = findJsonInt(manifest, "linear_num_key_heads", linear_num_key_heads_);
+    linear_num_value_heads_ = findJsonInt(manifest, "linear_num_value_heads", linear_num_value_heads_);
+    linear_conv_kernel_dim_ = findJsonInt(manifest, "linear_conv_kernel_dim", linear_conv_kernel_dim_);
+    linear_key_dim_ = linear_key_head_dim_ * linear_num_key_heads_;
+    linear_value_dim_ = linear_value_head_dim_ * linear_num_value_heads_;
+    linear_conv_dim_ = linear_key_dim_ * 2 + linear_value_dim_;
     rms_eps_ = findJsonFloat(manifest, "rms_norm_eps", rms_eps_);
     rope_theta_ = findJsonFloat(manifest, "rope_theta", rope_theta_);
     const int n_layers = findJsonInt(manifest, "num_hidden_layers", 32);
@@ -287,6 +357,9 @@ bool CustomModel::load(const std::string& model_dir, std::string* error) {
         return false;
     }
     if (!readVectorF32(model_dir + "/norm_weight.f32", hidden_size_, &final_norm_, error)) {
+        return false;
+    }
+    if (!readXq4(model_dir + "/lm_head_weight.xq4", &lm_head_, error)) {
         return false;
     }
     layers_.resize(static_cast<size_t>(n_layers));
@@ -298,13 +371,23 @@ bool CustomModel::load(const std::string& model_dir, std::string* error) {
     hidden_.assign(static_cast<size_t>(hidden_size_), 0.0f);
     scratch_hidden_.assign(static_cast<size_t>(hidden_size_), 0.0f);
     normed_.assign(static_cast<size_t>(hidden_size_), 0.0f);
-    q_.assign(static_cast<size_t>(std::max(hidden_size_ * 2, hidden_size_)), 0.0f);
+    q_.assign(static_cast<size_t>(std::max(hidden_size_ * 2, linear_conv_dim_)), 0.0f);
+    q_query_.assign(static_cast<size_t>(hidden_size_), 0.0f);
+    attn_gate_.assign(static_cast<size_t>(hidden_size_), 0.0f);
     k_.assign(static_cast<size_t>(std::max(num_key_value_heads_ * head_dim_, 1)), 0.0f);
     v_.assign(static_cast<size_t>(std::max(num_key_value_heads_ * head_dim_, 1)), 0.0f);
     attn_hidden_.assign(static_cast<size_t>(hidden_size_), 0.0f);
+    attn_scores_.clear();
+    linear_mixed_.assign(static_cast<size_t>(linear_conv_dim_), 0.0f);
+    linear_a_.assign(static_cast<size_t>(linear_num_value_heads_), 0.0f);
+    linear_b_.assign(static_cast<size_t>(linear_num_value_heads_), 0.0f);
+    linear_z_.assign(static_cast<size_t>(linear_value_dim_), 0.0f);
+    linear_conv_.assign(static_cast<size_t>(linear_conv_dim_), 0.0f);
     gate_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
     up_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
     ffn_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
+    logits_.assign(static_cast<size_t>(vocab_size_), 0.0f);
+    resetState();
     return true;
 }
 
@@ -328,8 +411,31 @@ bool CustomModel::loadLayer(const std::string& model_dir, int index, Layer* laye
     }
     layer->full_attention = false;
     return readXq4(p + "linear_attn_in_proj_qkv_weight.xq4", &layer->linear_in_proj_qkv, error) &&
+           readXq4(p + "linear_attn_in_proj_a_weight.xq4", &layer->linear_in_proj_a, error) &&
+           readXq4(p + "linear_attn_in_proj_b_weight.xq4", &layer->linear_in_proj_b, error) &&
            readXq4(p + "linear_attn_in_proj_z_weight.xq4", &layer->linear_in_proj_z, error) &&
-           readXq4(p + "linear_attn_out_proj_weight.xq4", &layer->linear_out_proj, error);
+           readXq4(p + "linear_attn_out_proj_weight.xq4", &layer->linear_out_proj, error) &&
+           readVectorF32(p + "linear_attn_norm_weight.f32", linear_value_head_dim_, &layer->linear_norm, error) &&
+           readVectorF32(p + "linear_attn_conv1d_weight.f32",
+                         linear_conv_dim_ * linear_conv_kernel_dim_,
+                         &layer->linear_conv_weight,
+                         error) &&
+           readVectorF32(p + "linear_attn_A_log.f32", linear_num_value_heads_, &layer->linear_a_log, error) &&
+           readVectorF32(p + "linear_attn_dt_bias.f32", linear_num_value_heads_, &layer->linear_dt_bias, error);
+}
+
+void CustomModel::resetState() {
+    for (Layer& layer : layers_) {
+        layer.k_cache.clear();
+        layer.v_cache.clear();
+        layer.kv_len = 0;
+        if (!layer.full_attention) {
+            layer.linear_conv_state.assign(
+                static_cast<size_t>(linear_conv_dim_ * std::max(0, linear_conv_kernel_dim_ - 1)), 0.0f);
+            layer.linear_recurrent_state.assign(
+                static_cast<size_t>(linear_num_value_heads_ * linear_key_head_dim_ * linear_value_head_dim_), 0.0f);
+        }
+    }
 }
 
 bool CustomModel::loadEmbeddingRow(int32_t token_id,
@@ -369,7 +475,21 @@ bool CustomModel::prefill(const int32_t* token_ids, size_t n_tokens, KernelTrace
         *error = "custom prefill requires prompt tokens";
         return false;
     }
-    return loadEmbeddingRow(token_ids[n_tokens - 1], &hidden_, trace, error);
+    resetState();
+    for (size_t i = 0; i < n_tokens; ++i) {
+        const auto t0 = Clock::now();
+        if (!loadEmbeddingRow(token_ids[i], &hidden_, trace, error)) {
+            return false;
+        }
+        for (Layer& layer : layers_) {
+            runLayer(layer, i, trace);
+        }
+        runFinalNorm(trace);
+        if (trace) {
+            trace->add("prefill_token_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+    return true;
 }
 
 void CustomModel::runLinear(const std::string& name,
@@ -385,6 +505,210 @@ void CustomModel::runLinear(const std::string& name,
     }
 }
 
+void CustomModel::appendKv(Layer& layer,
+                           const std::vector<float>& k,
+                           const std::vector<float>& v,
+                           KernelTrace* trace) {
+    const auto t0 = Clock::now();
+    const size_t kv_values = static_cast<size_t>(num_key_value_heads_ * head_dim_);
+    layer.k_cache.insert(layer.k_cache.end(), k.begin(), k.begin() + std::min(k.size(), kv_values));
+    layer.v_cache.insert(layer.v_cache.end(), v.begin(), v.begin() + std::min(v.size(), kv_values));
+    layer.kv_len += 1;
+    if (trace) {
+        trace->add("kv_append_custom", elapsedMs(t0, Clock::now()));
+        trace->add("prefill_kv_build_custom", elapsedMs(t0, Clock::now()));
+    }
+}
+
+void CustomModel::runFullAttention(Layer& layer, size_t position, KernelTrace* trace) {
+    runLinear("linear_q_proj_w4a16", layer.q_proj, normed_, &q_, trace);
+    runLinear("linear_k_proj_w4a16", layer.k_proj, normed_, &k_, trace);
+    runLinear("linear_v_proj_w4a16", layer.v_proj, normed_, &v_, trace);
+
+    const int q_dim = num_attention_heads_ * head_dim_;
+    std::copy(q_.begin(), q_.begin() + std::min<int>(q_dim, static_cast<int>(q_.size())), q_query_.begin());
+    if (static_cast<int>(q_.size()) >= q_dim * 2) {
+        std::copy(q_.begin() + q_dim, q_.begin() + q_dim * 2, attn_gate_.begin());
+    } else {
+        std::fill(attn_gate_.begin(), attn_gate_.end(), 0.0f);
+    }
+
+    {
+        const auto t0 = Clock::now();
+        applyHeadRms(q_query_.data(), layer.q_norm.data(), num_attention_heads_, head_dim_, rms_eps_);
+        applyHeadRms(k_.data(), layer.k_norm.data(), num_key_value_heads_, head_dim_, rms_eps_);
+        applyRopeVector(
+            q_query_.data(), num_attention_heads_, head_dim_, rotary_dim_, static_cast<int>(position), rope_theta_);
+        applyRopeVector(k_.data(), num_key_value_heads_, head_dim_, rotary_dim_, static_cast<int>(position), rope_theta_);
+        if (trace) {
+            trace->add("rope_qk_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+
+    appendKv(layer, k_, v_, trace);
+    const int context = static_cast<int>(layer.kv_len);
+    attn_scores_.assign(static_cast<size_t>(std::max(1, context * num_attention_heads_)), 0.0f);
+    std::vector<float> max_scores(static_cast<size_t>(num_attention_heads_), -1.0e30f);
+    const int group = std::max(1, num_attention_heads_ / std::max(1, num_key_value_heads_));
+    {
+        const auto t0 = Clock::now();
+        for (int qh = 0; qh < num_attention_heads_; ++qh) {
+            const int kh = std::min(num_key_value_heads_ - 1, qh / group);
+            const float* qv = q_query_.data() + qh * head_dim_;
+            for (int t = 0; t < context; ++t) {
+                const float* kv =
+                    layer.k_cache.data() + (static_cast<size_t>(t) * num_key_value_heads_ + kh) * head_dim_;
+                float dot = 0.0f;
+                for (int d = 0; d < head_dim_; ++d) {
+                    dot += qv[d] * kv[d];
+                }
+                const float score = dot / std::sqrt(static_cast<float>(head_dim_));
+                attn_scores_[static_cast<size_t>(qh * context + t)] = score;
+                max_scores[static_cast<size_t>(qh)] = std::max(max_scores[static_cast<size_t>(qh)], score);
+            }
+        }
+        if (trace) {
+            trace->add("attention_score_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+    {
+        const auto t0 = Clock::now();
+        for (int qh = 0; qh < num_attention_heads_; ++qh) {
+            float denom = 0.0f;
+            for (int t = 0; t < context; ++t) {
+                float& score = attn_scores_[static_cast<size_t>(qh * context + t)];
+                score = std::exp(score - max_scores[static_cast<size_t>(qh)]);
+                denom += score;
+            }
+            const float inv = denom > 0.0f ? 1.0f / denom : 0.0f;
+            for (int t = 0; t < context; ++t) {
+                attn_scores_[static_cast<size_t>(qh * context + t)] *= inv;
+            }
+        }
+        if (trace) {
+            trace->add("attention_softmax_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+    {
+        const auto t0 = Clock::now();
+        std::fill(attn_hidden_.begin(), attn_hidden_.end(), 0.0f);
+        for (int qh = 0; qh < num_attention_heads_; ++qh) {
+            const int kh = std::min(num_key_value_heads_ - 1, qh / group);
+            float* out = attn_hidden_.data() + qh * head_dim_;
+            for (int t = 0; t < context; ++t) {
+                const float weight = attn_scores_[static_cast<size_t>(qh * context + t)];
+                const float* vv =
+                    layer.v_cache.data() + (static_cast<size_t>(t) * num_key_value_heads_ + kh) * head_dim_;
+                for (int d = 0; d < head_dim_; ++d) {
+                    out[d] += weight * vv[d];
+                }
+            }
+        }
+        if (trace) {
+            trace->add("attention_v_reduce_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+    {
+        const auto t0 = Clock::now();
+        for (int i = 0; i < q_dim; ++i) {
+            attn_hidden_[static_cast<size_t>(i)] *= sigmoid(attn_gate_[static_cast<size_t>(i)]);
+        }
+        if (trace) {
+            trace->add("attention_output_gate_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+    runLinear("linear_o_proj_w4a16", layer.o_proj, attn_hidden_, &scratch_hidden_, trace);
+}
+
+void CustomModel::runLinearAttention(Layer& layer, KernelTrace* trace) {
+    runLinear("linear_attn_in_proj_qkv_w4a16", layer.linear_in_proj_qkv, normed_, &linear_mixed_, trace);
+    runLinear("linear_attn_in_proj_a_w4a16", layer.linear_in_proj_a, normed_, &linear_a_, trace);
+    runLinear("linear_attn_in_proj_b_w4a16", layer.linear_in_proj_b, normed_, &linear_b_, trace);
+    runLinear("linear_attn_in_proj_z_w4a16", layer.linear_in_proj_z, normed_, &linear_z_, trace);
+
+    {
+        const auto t0 = Clock::now();
+        const int history = std::max(0, linear_conv_kernel_dim_ - 1);
+        for (int c = 0; c < linear_conv_dim_; ++c) {
+            float acc = 0.0f;
+            for (int k = 0; k < history; ++k) {
+                const size_t state_index = static_cast<size_t>(c * history + k);
+                const size_t weight_index = static_cast<size_t>(c * linear_conv_kernel_dim_ + k);
+                acc += layer.linear_conv_state[state_index] * layer.linear_conv_weight[weight_index];
+            }
+            acc += linear_mixed_[static_cast<size_t>(c)] *
+                   layer.linear_conv_weight[static_cast<size_t>(c * linear_conv_kernel_dim_ + history)];
+            linear_conv_[static_cast<size_t>(c)] = silu(acc);
+        }
+        for (int c = 0; c < linear_conv_dim_; ++c) {
+            float* state = layer.linear_conv_state.data() + static_cast<size_t>(c * history);
+            for (int k = 0; k + 1 < history; ++k) {
+                state[k] = state[k + 1];
+            }
+            if (history > 0) {
+                state[history - 1] = linear_mixed_[static_cast<size_t>(c)];
+            }
+        }
+        if (trace) {
+            trace->add("linear_attention_conv1d_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+
+    float* query = linear_conv_.data();
+    float* key = linear_conv_.data() + linear_key_dim_;
+    float* value = linear_conv_.data() + linear_key_dim_ * 2;
+    {
+        const auto t0 = Clock::now();
+        l2NormalizeHeads(query, linear_num_key_heads_, linear_key_head_dim_);
+        l2NormalizeHeads(key, linear_num_key_heads_, linear_key_head_dim_);
+        if (trace) {
+            trace->add("linear_attention_qk_l2norm_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+
+    {
+        const auto t0 = Clock::now();
+        const int factor = std::max(1, linear_num_value_heads_ / std::max(1, linear_num_key_heads_));
+        std::fill(attn_hidden_.begin(), attn_hidden_.end(), 0.0f);
+        for (int vh = 0; vh < linear_num_value_heads_; ++vh) {
+            const int kh = std::min(linear_num_key_heads_ - 1, vh / factor);
+            const float beta = sigmoid(linear_b_[static_cast<size_t>(vh)]);
+            const float gate = -std::exp(layer.linear_a_log[static_cast<size_t>(vh)]) *
+                               softplus(linear_a_[static_cast<size_t>(vh)] +
+                                        layer.linear_dt_bias[static_cast<size_t>(vh)]);
+            float* state = layer.linear_recurrent_state.data() +
+                           static_cast<size_t>(vh * linear_key_head_dim_ * linear_value_head_dim_);
+            float* out = attn_hidden_.data() + static_cast<size_t>(vh * linear_value_head_dim_);
+            kernels::gatedDeltaDecodeReference(query + kh * linear_key_head_dim_,
+                                               key + kh * linear_key_head_dim_,
+                                               value + vh * linear_value_head_dim_,
+                                               beta,
+                                               gate,
+                                               linear_key_head_dim_,
+                                               linear_value_head_dim_,
+                                               state,
+                                               out);
+        }
+        if (trace) {
+            trace->add("linear_attention_state_update_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+    {
+        const auto t0 = Clock::now();
+        applyGatedHeadRms(attn_hidden_.data(),
+                          layer.linear_norm.data(),
+                          linear_z_.data(),
+                          linear_num_value_heads_,
+                          linear_value_head_dim_,
+                          rms_eps_,
+                          attn_hidden_.data());
+        if (trace) {
+            trace->add("linear_attention_gated_rmsnorm_custom", elapsedMs(t0, Clock::now()));
+        }
+    }
+    runLinear("linear_attn_out_proj_w4a16", layer.linear_out_proj, attn_hidden_, &scratch_hidden_, trace);
+}
+
 void CustomModel::runLayer(Layer& layer, size_t position, KernelTrace* trace) {
     {
         const auto t0 = Clock::now();
@@ -394,44 +718,9 @@ void CustomModel::runLayer(Layer& layer, size_t position, KernelTrace* trace) {
         }
     }
     if (layer.full_attention) {
-        runLinear("linear_q_proj_w4a16", layer.q_proj, normed_, &q_, trace);
-        runLinear("linear_k_proj_w4a16", layer.k_proj, normed_, &k_, trace);
-        runLinear("linear_v_proj_w4a16", layer.v_proj, normed_, &v_, trace);
-        {
-            const auto t0 = Clock::now();
-            applyHeadRms(q_.data(), layer.q_norm.data(), num_attention_heads_, head_dim_, rms_eps_);
-            applyHeadRms(k_.data(), layer.k_norm.data(), num_key_value_heads_, head_dim_, rms_eps_);
-            applyRopeVector(q_.data(), num_attention_heads_, head_dim_, static_cast<int>(position), rope_theta_);
-            applyRopeVector(k_.data(), num_key_value_heads_, head_dim_, static_cast<int>(position), rope_theta_);
-            if (trace) {
-                trace->add("rope_qk_custom", elapsedMs(t0, Clock::now()));
-            }
-        }
-        {
-            const auto t0 = Clock::now();
-            for (int i = 0; i < hidden_size_; ++i) {
-                const int kv = i % std::max(1, static_cast<int>(v_.size()));
-                attn_hidden_[static_cast<size_t>(i)] = 0.001f * q_[static_cast<size_t>(i)] + v_[static_cast<size_t>(kv)];
-            }
-            if (trace) {
-                trace->add("fallback_attention_passthrough", elapsedMs(t0, Clock::now()));
-            }
-        }
-        runLinear("linear_o_proj_w4a16", layer.o_proj, attn_hidden_, &scratch_hidden_, trace);
+        runFullAttention(layer, position, trace);
     } else {
-        runLinear("linear_attn_in_proj_qkv_w4a16", layer.linear_in_proj_qkv, normed_, &q_, trace);
-        runLinear("linear_attn_in_proj_z_w4a16", layer.linear_in_proj_z, normed_, &attn_hidden_, trace);
-        {
-            const auto t0 = Clock::now();
-            for (int i = 0; i < hidden_size_; ++i) {
-                attn_hidden_[static_cast<size_t>(i)] =
-                    std::tanh(attn_hidden_[static_cast<size_t>(i)]) + 0.0005f * q_[static_cast<size_t>(i)];
-            }
-            if (trace) {
-                trace->add("fallback_linear_attention_state", elapsedMs(t0, Clock::now()));
-            }
-        }
-        runLinear("linear_attn_out_proj_w4a16", layer.linear_out_proj, attn_hidden_, &scratch_hidden_, trace);
+        runLinearAttention(layer, trace);
     }
     addResidual(&hidden_, scratch_hidden_);
 
@@ -458,41 +747,61 @@ void CustomModel::runLayer(Layer& layer, size_t position, KernelTrace* trace) {
     addResidual(&hidden_, scratch_hidden_);
 }
 
+void CustomModel::runFinalNorm(KernelTrace* trace) {
+    const auto t0 = Clock::now();
+    kernels::rmsnormReference(hidden_.data(), final_norm_.data(), hidden_size_, rms_eps_, scratch_hidden_.data());
+    hidden_.swap(scratch_hidden_);
+    if (trace) {
+        trace->add("rmsnorm_final", elapsedMs(t0, Clock::now()));
+    }
+}
+
+bool CustomModel::sampleGreedy(int32_t* token_id, KernelTrace* trace, std::string* error) {
+    if (lm_head_.rows <= 0 || lm_head_.cols != hidden_size_) {
+        *error = "lm_head matrix is not loaded";
+        return false;
+    }
+    runLinear("lm_head_custom", lm_head_, hidden_, &logits_, trace);
+    const auto t0 = Clock::now();
+    int best = 0;
+    float best_value = logits_.empty() ? -std::numeric_limits<float>::infinity() : logits_[0];
+    for (int i = 1; i < static_cast<int>(logits_.size()); ++i) {
+        const float value = logits_[static_cast<size_t>(i)];
+        if (value > best_value) {
+            best_value = value;
+            best = i;
+        }
+    }
+    *token_id = best;
+    if (trace) {
+        trace->add("sampling_greedy_custom", elapsedMs(t0, Clock::now()));
+    }
+    return true;
+}
+
 bool CustomModel::decodeOne(int32_t* token_id, size_t position, KernelTrace* trace, std::string* error) {
     if (!token_id) {
         *error = "decodeOne token output is null";
         return false;
     }
+    if (!sampleGreedy(token_id, trace, error)) {
+        return false;
+    }
+    if (!loadEmbeddingRow(*token_id, &hidden_, trace, error)) {
+        return false;
+    }
     for (Layer& layer : layers_) {
         runLayer(layer, position, trace);
     }
-    {
-        const auto t0 = Clock::now();
-        kernels::rmsnormReference(hidden_.data(), final_norm_.data(), hidden_size_, rms_eps_, scratch_hidden_.data());
-        hidden_.swap(scratch_hidden_);
-        if (trace) {
-            trace->add("rmsnorm_final", elapsedMs(t0, Clock::now()));
-        }
-    }
-    {
-        const auto t0 = Clock::now();
-        double sum = 0.0;
-        for (int i = 0; i < hidden_size_; i += 32) {
-            sum += hidden_[static_cast<size_t>(i)] * static_cast<double>(i + 1);
-        }
-        const int64_t hashed = static_cast<int64_t>(std::llabs(static_cast<long long>(sum * 1000000.0)));
-        *token_id = static_cast<int32_t>((hashed + static_cast<int64_t>(position)) % std::max(2, vocab_size_));
-        if (trace) {
-            trace->add("fallback_lm_head_sampling_hash", elapsedMs(t0, Clock::now()));
-        }
-    }
+    runFinalNorm(trace);
     return true;
 }
 
 std::string CustomModel::coverageSummary() const {
-    return "custom_decode_loop;hotpath_replaced=true;"
-           "linear=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,linear_attn_qkv_z_out;"
-           "rmsnorm=custom;rope=custom;fallback_ops=attention,linear_attention_state,lm_head,sampling,prefill_kv";
+    return "custom_decode_loop;hotpath_replaced=true;full_custom_decode=true;"
+           "linear=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,linear_attn_qkv_a_b_z_out,lm_head;"
+           "rmsnorm=custom;rope=custom;attention=custom_gqa_decode;linear_attention_state=custom_gated_delta;"
+           "sampling=custom_greedy;prefill_kv_build=custom;fallback_ops=none";
 }
 
 }  // namespace xq

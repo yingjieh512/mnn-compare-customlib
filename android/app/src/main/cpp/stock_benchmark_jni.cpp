@@ -20,8 +20,8 @@
 namespace {
 
 constexpr int kThreads = 8;
-constexpr int kWarmupIterations = 1;
-constexpr int kMeasureIterations = 5;
+constexpr int kDefaultWarmupIterations = 1;
+constexpr int kDefaultMeasureIterations = 5;
 constexpr int kPromptToken = 16;
 
 std::string jstringToString(JNIEnv* env, jstring value) {
@@ -212,7 +212,11 @@ struct IterationResult {
     std::string status;
 };
 
-std::string runStockBenchmark(const std::string& model_dir, int prompt_tokens, int max_new_tokens) {
+std::string runStockBenchmark(const std::string& model_dir,
+                              int prompt_tokens,
+                              int max_new_tokens,
+                              int warmup_iterations,
+                              int measure_iterations) {
     const std::string config_path = model_dir + "/llm_config.json";
     if (model_dir.empty()) {
         return errorJson(model_dir, "model_dir is empty", prompt_tokens, max_new_tokens);
@@ -264,11 +268,11 @@ std::string runStockBenchmark(const std::string& model_dir, int prompt_tokens, i
     std::string terminal_error;
 
     std::vector<int> prompt(static_cast<size_t>(prompt_tokens), kPromptToken);
-    for (int i = 0; i < kWarmupIterations + kMeasureIterations; ++i) {
+    for (int i = 0; i < warmup_iterations + measure_iterations; ++i) {
         llm->reset();
         IterationResult result;
         result.index = i;
-        result.warmup = i < kWarmupIterations;
+        result.warmup = i < warmup_iterations;
 
         const auto start = std::chrono::steady_clock::now();
         llm->response(prompt, nullptr, nullptr, max_new_tokens);
@@ -316,7 +320,7 @@ std::string runStockBenchmark(const std::string& model_dir, int prompt_tokens, i
     const Stats prefill_stats = computeStats(prefill_tps);
     const Stats decode_stats = computeStats(decode_tps);
     const Stats wall_stats = computeStats(wall_ms_values);
-    const bool ok = terminal_error.empty() && prefill_tps.size() == static_cast<size_t>(kMeasureIterations);
+    const bool ok = terminal_error.empty() && prefill_tps.size() == static_cast<size_t>(measure_iterations);
 
     std::ostringstream oss;
     oss << "{"
@@ -341,8 +345,8 @@ std::string runStockBenchmark(const std::string& model_dir, int prompt_tokens, i
         << ",\"max_new_tokens\":" << max_new_tokens
         << ",\"prompt_token_id\":" << kPromptToken
         << ",\"temperature\":0,\"top_k\":1,\"top_p\":1,\"batch_size\":1},"
-        << "\"iterations\":{\"warmup\":" << kWarmupIterations
-        << ",\"measured\":" << prefill_tps.size() << ",\"target_measured\":" << kMeasureIterations << "},"
+        << "\"iterations\":{\"warmup\":" << warmup_iterations
+        << ",\"measured\":" << prefill_tps.size() << ",\"target_measured\":" << measure_iterations << "},"
         << "\"timing\":{\"load_us\":" << load_us
         << ",\"load_wall_ms\":" << load_wall_ms
         << ",\"wall_ms\":";
@@ -385,12 +389,16 @@ Java_com_example_xqwen35stock_NativeStockBenchmark_runBenchmark(JNIEnv* env,
                                                                 jclass,
                                                                 jstring model_dir,
                                                                 jint prompt_tokens,
-                                                                jint max_new_tokens) {
+                                                                jint max_new_tokens,
+                                                                jint warmup_iterations,
+                                                                jint measure_iterations) {
     const std::string model = jstringToString(env, model_dir);
     __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_START engine=mnn_stock model_dir=%s", model.c_str());
+    const int warmups = std::max(0, static_cast<int>(warmup_iterations));
+    const int measured = std::max(1, static_cast<int>(measure_iterations));
 
 #if defined(XQ_ENABLE_MNN)
-    std::string json = runStockBenchmark(model, static_cast<int>(prompt_tokens), static_cast<int>(max_new_tokens));
+    std::string json = runStockBenchmark(model, static_cast<int>(prompt_tokens), static_cast<int>(max_new_tokens), warmups, measured);
 #else
     std::string json = errorJson(model, "stock JNI was built without XQ_ENABLE_MNN", prompt_tokens, max_new_tokens);
 #endif

@@ -1,98 +1,112 @@
-# Qwen3.5-9B Custom MNN-Based Mobile Inference Library
+# Qwen3.5-9B Custom Mobile Inference Library
 
-This repository builds a custom MNN-based mobile LLM inference library for `Qwen/Qwen3.5-9B`, with generated low-bit kernels, model packing scripts, Android benchmark APKs, and AWS Device Farm automation.
+This repository builds and benchmarks a custom Android inference library for `Qwen/Qwen3.5-9B` against stock MNN on AWS Device Farm.
 
-Current pinned inputs:
+Final pinned inputs:
 
 - MNN: `0bff03cbef43c783f44e41484b9f8a0b28bd758d`
 - Hugging Face model: `Qwen/Qwen3.5-9B`
 - HF revision: `c202236235762e1c871ad0ccb60c8ee5ba337b9a`
-- Headline quantization target: W4A16 groupwise, group size 64
+- Custom quantization: W4A16 groupwise, group size 64
+- Final model package SHA-256: `9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34`
 
-## Status
+## Final Status
 
-The project skeleton, C ABI, reference/generated kernel path, Android benchmark modules, model packer, result parser, and AWS Device Farm scripts are present. Android APKs build successfully and AWS Device Farm has an exact Samsung Galaxy S26 Ultra available in `us-west-2`.
+The v16 final run is complete. Stock MNN and the custom library ran on the same AWS Device Farm Samsung Galaxy S26 Ultra pool with the same Qwen3.5-9B package, same 512-token prompt, same 256-token decode length, greedy settings, CPU backend, and 1 warmup / 3 measured iterations.
 
-Final AWS Device Farm tokens/sec are not claimed in this checkout because the real Qwen3.5-9B model artifacts were not downloaded/converted/packed/uploaded and the stock MNN runner is still a smoke harness. See `results/devicefarm_blocker.md`.
+The measured custom path is full custom generation:
 
-Exact Device Farm device found:
+- `use_mnn_fallback = 0`
+- `custom_path.calls_mnn_llm_response_for_measured_generation = false`
+- `runtime.selected_kernels.full_custom_decode = true`
+- `runtime.selected_kernels.hotpath_replaced = true`
+- `runtime.selected_kernels.fallback_op_families = []`
 
-- ARN: `arn:aws:devicefarm:us-west-2::device:536B9FDAEAA14A11B504A3ECC86DA717`
-- Name: `Samsung Galaxy S26 Ultra`
-- Model ID: `SM-S948U1`
-- OS: `16`
-- Availability: `HIGHLY_AVAILABLE`
+Final performance result:
+
+| Metric | Stock MNN | Customlib | Custom / Stock |
+| --- | ---: | ---: | ---: |
+| Prefill TPS | 45.0960 | 0.486717 | 0.0108x |
+| Decode TPS | 2.28587 | 0.424895 | 0.1859x |
+| Decode TPOT | 437.470 ms | 2,353.52 ms | 5.38x stock TPOT |
+
+Speedup verdict: no custom speedup is claimed. The final custom path is complete and verifiable, but stock MNN is 5.38x faster on decode TPS for this run.
+
+Final evidence:
+
+- Final report: `results/reports/final_devicefarm_report.md`
+- Machine-readable summary: `results/reports/final_devicefarm_report.json`
+- Stock evidence JSON: `results/reports/evidence/stock_mnn_benchmark_v16_final.json`
+- Custom evidence JSON: `results/reports/evidence/customlib_benchmark_v16_final.json`
+- Code walkthrough: `docs/kernel_library_code_walkthrough_final.md`
+
+Final AWS Device Farm runs:
+
+- Stock MNN run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/baed9f8e-2a52-4b93-8584-60c305b73757`
+- Customlib run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7bc0f1d8-7640-4574-8309-da6bdb9fa642`
+- Device pool ARN: `arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213`
+- Device ARN: `arn:aws:devicefarm:us-west-2::device:536B9FDAEAA14A11B504A3ECC86DA717`
+
+## What The Custom Library Replaces
+
+The final measured custom path replaces the requested decode and prefill families:
+
+- `q_proj`, `k_proj`, `v_proj`, `o_proj`
+- `gate_proj`, `up_proj`, `down_proj`
+- `rmsnorm`
+- `rope`
+- `attention`
+- `linear_attention_state`
+- `lm_head`
+- `sampling`
+- `prefill_kv_build`
+
+The public ABI is in `customlib/include/xqwen35.h`. The measured Android custom benchmark enters the library through `xq_generate`, then runs `Session::prefill`, `Session::decodeOne`, and `CustomModel` without calling `MNN::Transformer::Llm::response`.
 
 ## Build Host Correctness Tests
 
-On this Windows workspace, Android SDK CMake is available even when `cmake` is not on `PATH`:
-
 ```powershell
-$cmake="$env:LOCALAPPDATA\Android\Sdk\cmake\3.22.1\bin\cmake.exe"
-& $cmake -S . -B build\host -G Ninja -DXQ_BUILD_TESTS=ON
-& $cmake --build build\host
-& $cmake --build build\host --target test
+$env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"
+cmake -S . -B build-host -G Ninja -DXQ_BUILD_TESTS=ON
+cmake --build build-host
+ctest --test-dir build-host --output-on-failure
 ```
+
+Final host result: 2/2 tests passed.
+
+Covered checks include stable softmax, grouped-query attention decode, KV cache append/read, RoPE sanity, RMSNorm sanity, W4A16 GEMV against reference, lm_head argmax, greedy sampling, prefill KV cache length, and tiny end-to-end custom decode.
 
 ## Build Android APKs
 
 ```powershell
-.\scripts\build_android.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1
 ```
 
-Expected outputs:
+Final APK outputs:
 
-- `android/app/build/outputs/apk/release/app-release.apk`
-- `android/app/build/outputs/apk/androidTest/release/app-release-androidTest.apk`
-- `android/benchmark_app/build/outputs/apk/release/benchmark_app-release.apk`
-- `android/benchmark_app/build/outputs/apk/androidTest/release/benchmark_app-release-androidTest.apk`
+- `android/app/build/outputs/apk/debug/stock_mnn_benchmark-debug.apk`
+- `android/app/build/outputs/apk/androidTest/debug/stock_mnn_benchmark-debug-androidTest.apk`
+- `android/benchmark_app/build/outputs/apk/debug/customlib_benchmark-debug.apk`
+- `android/benchmark_app/build/outputs/apk/androidTest/debug/customlib_benchmark-debug-androidTest.apk`
 
-## Model Download, Conversion, and Packing
+## Model Packing
 
-```bash
-scripts/download_model.sh models/Qwen3.5-9B
-scripts/convert_model.sh models/Qwen3.5-9B out/qwen35_mnn_w4
-scripts/pack_model.sh models/Qwen3.5-9B out/qwen35_custom_w4 4 64
-```
+The final packer is `customlib/packer/pack_qwen35_xq4.py`. It exports W4A16 matrices and runtime metadata for:
 
-The packer reads `config.json` and records actual Qwen3.5 dimensions in `xqwen35_manifest.json`.
+- full-attention projections and MLP projections
+- Qwen3.5 linear-attention tensors
+- `lm_head.weight`
+- embeddings and norm vectors
+- model dimensions, head counts, RoPE metadata, and quantization metadata
+
+The Device Farm bootstrap reassembled and verified the three-part v15/v16 model package on-device before each final run.
 
 ## AWS Device Farm Flow
 
-```bash
-python scripts/aws/check_credentials.py --region us-west-2
-python scripts/aws/list_devicefarm_devices.py --region us-west-2
-python scripts/aws/create_or_get_project.py --region us-west-2
-python scripts/aws/create_exact_device_pool.py --project-arn PROJECT_ARN --region us-west-2
-python scripts/aws/upload_artifact.py --project-arn PROJECT_ARN --path APP.apk --type ANDROID_APP
-python scripts/aws/upload_artifact.py --project-arn PROJECT_ARN --path TEST.apk --type INSTRUMENTATION_TEST_PACKAGE
-python scripts/aws/schedule_benchmark_run.py --project-arn PROJECT_ARN --app-arn APP_UPLOAD_ARN --test-package-arn TEST_UPLOAD_ARN --device-pool-arn DEVICE_POOL_ARN
-python scripts/aws/wait_for_run.py --run-arn RUN_ARN
-python scripts/aws/download_artifacts.py --run-arn RUN_ARN
-python scripts/aws/make_report.py --raw-dir results/raw/RUN_DIR
-```
+The automation scripts in `scripts/aws` create or reuse the project and device pool, upload APKs, schedule instrumentation runs, wait for completion, download artifacts, and parse `BENCH_RESULT_JSON`.
 
-Final validation must use an exact AWS Device Farm Samsung Galaxy S26 Ultra. Another phone may be used only for development smoke tests and must not be reported as the final result.
-
-## Public C ABI
-
-The exported API is in `customlib/include/xqwen35.h`:
-
-- `xq_create`
-- `xq_destroy`
-- `xq_prefill`
-- `xq_decode_one`
-- `xq_generate`
-- `xq_reset`
-- `xq_get_last_metrics`
-- `xq_get_backend_info`
-
-The public API does not expose raw MNN APIs.
+The final report records the exact run ARNs, artifact paths, model SHA-256 verification, overall TPOT/TPS, custom per-kernel wall clock, MNN hot-path trace tables, and custom op coverage.
 
 ## Honesty Rules
 
-This repository must not claim:
-
-- Device Farm validation without run artifacts.
-- NPU acceleration without backend/profiler evidence.
-- A custom speedup unless stock MNN and customlib use the same model, revision, tokenizer, prompt, quantization, backend class, generation settings, and phone.
+This repository only claims results that are backed by artifacts. The final v16 result is a faithful same-device stock-vs-custom benchmark, but it is not a speedup result. Historical v13/v14 reports remain in `results/reports` for audit trail and are superseded by the v16 final report.

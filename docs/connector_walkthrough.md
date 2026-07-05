@@ -1,41 +1,67 @@
 # Connector Walkthrough
 
-The custom library keeps stock MNN unmodified for the baseline. The measured v14 custom path uses `customlib/runtime/CustomModel` for decode hotpath execution with `use_mnn_fallback = 0`; MNN is not the main custom generation path.
+The final v16 benchmark separates four connector roles: stock MNN baseline, optional compatibility fallback, JNI benchmark entry points, and AWS Device Farm artifact collection. The complete final walkthrough is in `docs/kernel_library_code_walkthrough_final.md`.
 
-## MNN Version
+## MNN Baseline Connector
 
-Pinned MNN commit:
+The stock baseline stays unmodified and is implemented in `android/app/src/main/cpp/stock_benchmark_jni.cpp`.
 
-```text
-0bff03cbef43c783f44e41484b9f8a0b28bd758d
-```
+- Creates `MNN::Transformer::Llm`.
+- Runs the stock generation path.
+- Reports stock prefill TPS, decode TPS, and TPOT.
+- Emits `BENCH_RESULT_JSON` for Device Farm artifacts.
 
-The pinned tree includes Qwen3.5 export support:
-
-- `transformers/llm/export/utils/model_mapper.py`
-- `transformers/llm/export/utils/custom_op.py`
-- `transformers/llm/export/utils/transformers.py`
-
-MNN's exporter emits LLM custom op semantics such as:
-
-- `LlmExporter::FakeLinear`
-- `LlmExporter::FusedAttention`
-- `LlmExporter::FusedLinearAttention`
+This is the only measured path that uses MNN generation.
 
 ## Custom Runtime Connector
 
-The public ABI in `customlib/include/xqwen35.h` is implemented by `customlib/runtime/session.cpp`.
+The measured custom path enters through `customlib/include/xqwen35.h` and is implemented by `customlib/runtime/session.cpp`.
 
-- `xq_create` loads either MNN fallback mode or `CustomModel`.
-- The v14 Android custom benchmark sets `xq_options.use_mnn_fallback = 0`.
-- `xq_generate` dispatches to the custom prefill/decode loop when `CustomModel` is loaded.
-- `xq_get_kernel_trace_json` returns per-kernel wall-clock trace entries from the measured custom path.
+- `xq_create` loads `CustomModel` when `xq_options.use_mnn_fallback = 0`.
+- `xq_generate` dispatches to custom prefill and custom decode.
+- `xq_get_kernel_trace_json` returns per-kernel wall-clock rows from the custom path.
 
-The measured v14 custom decode loop replaces linear decode projections, RMSNorm, RoPE, and FFN gate math. Attention, linear-attention recurrent state, lm_head, sampling, and prefill KV build remain explicit fallbacks.
+Final Device Farm evidence reports:
 
-## Fallback Rules
+```text
+use_mnn_fallback = 0
+calls_mnn_llm_response_for_measured_generation = false
+full_custom_decode = true
+fallback_op_families = []
+```
 
-- The stock baseline may use MNN end to end.
-- The custom v14 measured path must not call `MNN::Llm::response`.
-- Any fallback must be logged in selected kernel metadata and final reports.
-- The public ABI never exposes raw MNN objects.
+## Fallback Connector
+
+`Session` still supports `xq_options.use_mnn_fallback != 0` for compatibility and debugging. That mode creates an MNN LLM session.
+
+The final measured custom benchmark does not use this connector. It remains separate from the final `BENCH_RESULT_JSON` custom generation loop.
+
+## JNI Connector
+
+The Android instrumentation entry points are:
+
+- `NativeStockBenchmark.runBenchmark(...)`
+- `NativeBenchmark.runBenchmark(...)`
+
+Both pass the same model directory, prompt token count, max new tokens, prompt token id, warmup count, and measured count. Both write the JSON result into the Device Farm artifact directory.
+
+## Benchmark Connector
+
+The custom benchmark JSON records:
+
+- selected kernels and op family coverage
+- full custom decode booleans
+- empty fallback family list
+- per-run prefill/decode timings
+- mean prefill TPS, decode TPS, and decode TPOT
+- per-kernel wall-clock rows
+- MNN hot-path trace evidence collected outside the measured custom loop
+
+## Device Farm Connector
+
+The Android bootstrap downloads split Qwen3.5-9B package parts, reassembles the zip, verifies the full SHA-256 on-device, unzips the model, and then runs instrumentation.
+
+Final runs:
+
+- Stock MNN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/baed9f8e-2a52-4b93-8584-60c305b73757`
+- Customlib: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7bc0f1d8-7640-4574-8309-da6bdb9fa642`

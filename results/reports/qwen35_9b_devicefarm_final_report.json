@@ -1,336 +1,118 @@
 {
-  "customlib": {
-    "max": 2.25523,
-    "median": 2.25523,
-    "min": 2.25523,
-    "p90": 2.25523
+  "generated_utc": "2026-07-05T02:52:09.621699+00:00",
+  "devicefarm": {
+    "project_arn": "arn:aws:devicefarm:us-west-2:884244642857:project:64d2cc31-abd6-49f8-97da-162f82410bc0",
+    "device_pool_arn": "arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213",
+    "device_arn": "arn:aws:devicefarm:us-west-2::device:536B9FDAEAA14A11B504A3ECC86DA717",
+    "device": "Samsung Galaxy S26 Ultra / SM-S948U1 / Android 16",
+    "stock_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/baed9f8e-2a52-4b93-8584-60c305b73757",
+    "custom_run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7bc0f1d8-7640-4574-8309-da6bdb9fa642",
+    "stock_result": "PASSED",
+    "custom_result": "PASSED",
+    "stock_device_minutes_total": 26.01,
+    "custom_device_minutes_total": 129.34
   },
-  "raw_dir": "results\\raw\\final_real_qwen35_devicefarm_v10",
-  "runs": [
-    {
-      "artifact": {
-        "model_dir": "/storage/emulated/0/Android/data/com.example.xqwen35bench/files/qwen35_mnn_model"
-      },
-      "backend": "mnn_fallback_cpu",
-      "engine": "customlib",
-      "generation": {
-        "batch_size": 1,
-        "max_new_tokens": 256,
-        "prompt_token_id": 16,
-        "prompt_tokens_requested": 512,
-        "temperature": 0,
-        "top_k": 1,
-        "top_p": 1
-      },
-      "iterations": {
-        "measured": 5,
-        "target_measured": 5,
-        "warmup": 1
-      },
-      "model": {
-        "format": "mnn_skip_weight",
-        "hf_repo": "Qwen/Qwen3.5-9B",
-        "hf_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
-        "quantization": {
-          "bits": 4,
-          "group_size": 64,
-          "scheme": "w4a16_groupwise"
-        }
-      },
-      "runs": [
-        {
-          "decode_tokens_per_second": 2.25273,
-          "decode_total_ms": 113640,
-          "error": "",
-          "first_token_ms": 0,
-          "generated_tokens": 256,
-          "index": 0,
-          "prefill_ms": 12795.4,
-          "prefill_tokens_per_second": 40.0143,
-          "prompt_tokens": 512,
-          "status_code": 0,
-          "total_generate_ms": 126555,
-          "warmup": true
-        },
-        {
-          "decode_tokens_per_second": 2.27806,
-          "decode_total_ms": 112376,
-          "error": "",
-          "first_token_ms": 0,
-          "generated_tokens": 256,
-          "index": 1,
-          "prefill_ms": 11193,
-          "prefill_tokens_per_second": 45.743,
-          "prompt_tokens": 512,
-          "status_code": 0,
-          "total_generate_ms": 123683,
-          "warmup": false
-        },
-        {
-          "decode_tokens_per_second": 2.25001,
-          "decode_total_ms": 113777,
-          "error": "",
-          "first_token_ms": 0,
-          "generated_tokens": 256,
-          "index": 2,
-          "prefill_ms": 11241.8,
-          "prefill_tokens_per_second": 45.5445,
-          "prompt_tokens": 512,
-          "status_code": 0,
-          "total_generate_ms": 125133,
-          "warmup": false
-        },
-        {
-          "decode_tokens_per_second": 2.27992,
-          "decode_total_ms": 112284,
-          "error": "",
-          "first_token_ms": 0,
-          "generated_tokens": 256,
-          "index": 3,
-          "prefill_ms": 11212.7,
-          "prefill_tokens_per_second": 45.6625,
-          "prompt_tokens": 512,
-          "status_code": 0,
-          "total_generate_ms": 123612,
-          "warmup": false
-        },
-        {
-          "decode_tokens_per_second": 2.25416,
-          "decode_total_ms": 113568,
-          "error": "",
-          "first_token_ms": 0,
-          "generated_tokens": 256,
-          "index": 4,
-          "prefill_ms": 11154.9,
-          "prefill_tokens_per_second": 45.8992,
-          "prompt_tokens": 512,
-          "status_code": 0,
-          "total_generate_ms": 124837,
-          "warmup": false
-        },
-        {
-          "decode_tokens_per_second": 2.25523,
-          "decode_total_ms": 113514,
-          "error": "",
-          "first_token_ms": 0,
-          "generated_tokens": 256,
-          "index": 5,
-          "prefill_ms": 11162.9,
-          "prefill_tokens_per_second": 45.8664,
-          "prompt_tokens": 512,
-          "status_code": 0,
-          "total_generate_ms": 124792,
-          "warmup": false
-        }
-      ],
-      "runtime": {
-        "memory": "low",
-        "power": "normal",
-        "precision": "low",
-        "reuse_kv": false,
-        "selected_kernels": {
-          "summary": "customlib_api+mnn_llm_fallback; generated_arm64_kernels_present; hotpath_not_replaced"
-        },
-        "threads": 8,
-        "use_mmap": true
-      },
-      "schema_version": 2,
-      "status": "ok",
-      "timing": {
-        "load_ms": 8438.4,
-        "total_generate_ms": {
-          "max": 125133,
-          "mean": 124411,
-          "median": 124792,
-          "min": 123612,
-          "stdev": 634.933
-        }
-      },
-      "tokens_per_second": {
-        "decode": {
-          "max": 2.27992,
-          "mean": 2.26348,
-          "median": 2.25523,
-          "min": 2.25001,
-          "stdev": 0.0128012
-        },
-        "prefill": {
-          "max": 45.8992,
-          "mean": 45.7431,
-          "median": 45.743,
-          "min": 45.5445,
-          "stdev": 0.130779
-        }
-      }
+  "model": {
+    "hf_repo": "Qwen/Qwen3.5-9B",
+    "hf_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "quantization": "w4a16_groupwise, bits=4, group_size=64",
+    "zip_sha256": "9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34",
+    "split_part_bytes": [
+      4500000000,
+      4500000000,
+      2266405198
+    ],
+    "split_part_sha256": [
+      "3b13bdc4a158b6745f58cfe0dc4c31e485990a50f24d8f14809f5df0e2aa15dc",
+      "60b8c1d898e4db8b626f750660174f20c05a7e28a43ca11192d58494c3e9211f",
+      "32d8becc5a77be798a9bc8a3c26509e419942b57aad59f8d4b55310de7248b18"
+    ],
+    "zip_total_bytes": 11266405198
+  },
+  "same_settings": {
+    "stock_generation": {
+      "prompt_tokens_requested": 512,
+      "max_new_tokens": 256,
+      "prompt_token_id": 16,
+      "temperature": 0,
+      "top_k": 1,
+      "top_p": 1,
+      "batch_size": 1
     },
-    {
-      "artifact": {
-        "config_path": "/storage/emulated/0/Android/data/com.example.xqwen35stock/files/qwen35_mnn_model/llm_config.json",
-        "model_dir": "/storage/emulated/0/Android/data/com.example.xqwen35stock/files/qwen35_mnn_model"
-      },
-      "backend": "cpu",
-      "engine": "mnn_stock",
-      "generation": {
-        "batch_size": 1,
-        "max_new_tokens": 256,
-        "prompt_token_id": 16,
-        "prompt_tokens_requested": 512,
-        "temperature": 0,
-        "top_k": 1,
-        "top_p": 1
-      },
-      "iterations": {
-        "measured": 5,
-        "target_measured": 5,
-        "warmup": 1
-      },
-      "model": {
-        "format": "mnn_skip_weight",
-        "hf_repo": "Qwen/Qwen3.5-9B",
-        "hf_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
-        "quantization": {
-          "bits": 4,
-          "group_size": 64,
-          "scheme": "w4a16_groupwise"
-        }
-      },
-      "runs": [
-        {
-          "decode_tokens_per_second": 2.29527,
-          "decode_us": 111533865,
-          "generated_tokens": 256,
-          "index": 0,
-          "prefill_tokens_per_second": 43.8889,
-          "prefill_us": 11665831,
-          "prompt_tokens": 512,
-          "sample_us": 114454,
-          "status": "max_tokens_finished",
-          "ttfa_us": 0,
-          "wall_ms": 123318,
-          "warmup": true
-        },
-        {
-          "decode_tokens_per_second": 2.32789,
-          "decode_us": 109970867,
-          "generated_tokens": 256,
-          "index": 1,
-          "prefill_tokens_per_second": 45.6044,
-          "prefill_us": 11226978,
-          "prompt_tokens": 512,
-          "sample_us": 115834,
-          "status": "max_tokens_finished",
-          "ttfa_us": 0,
-          "wall_ms": 121316,
-          "warmup": false
-        },
-        {
-          "decode_tokens_per_second": 2.29496,
-          "decode_us": 111548756,
-          "generated_tokens": 256,
-          "index": 2,
-          "prefill_tokens_per_second": 45.5529,
-          "prefill_us": 11239680,
-          "prompt_tokens": 512,
-          "sample_us": 109577,
-          "status": "max_tokens_finished",
-          "ttfa_us": 0,
-          "wall_ms": 122901,
-          "warmup": false
-        },
-        {
-          "decode_tokens_per_second": 2.29946,
-          "decode_us": 111330633,
-          "generated_tokens": 256,
-          "index": 3,
-          "prefill_tokens_per_second": 45.2223,
-          "prefill_us": 11321852,
-          "prompt_tokens": 512,
-          "sample_us": 116562,
-          "status": "max_tokens_finished",
-          "ttfa_us": 0,
-          "wall_ms": 122772,
-          "warmup": false
-        },
-        {
-          "decode_tokens_per_second": 2.33197,
-          "decode_us": 109778379,
-          "generated_tokens": 256,
-          "index": 4,
-          "prefill_tokens_per_second": 45.9775,
-          "prefill_us": 11135884,
-          "prompt_tokens": 512,
-          "sample_us": 109391,
-          "status": "max_tokens_finished",
-          "ttfa_us": 0,
-          "wall_ms": 121027,
-          "warmup": false
-        },
-        {
-          "decode_tokens_per_second": 2.29844,
-          "decode_us": 111379766,
-          "generated_tokens": 256,
-          "index": 5,
-          "prefill_tokens_per_second": 46.1013,
-          "prefill_us": 11105974,
-          "prompt_tokens": 512,
-          "sample_us": 116580,
-          "status": "max_tokens_finished",
-          "ttfa_us": 0,
-          "wall_ms": 122606,
-          "warmup": false
-        }
-      ],
-      "runtime": {
-        "attention_mode": 8,
-        "cpu_sme2_neon_division_ratio": 41,
-        "cpu_sme_core_num": 2,
-        "dynamic_option": 8,
-        "memory": "low",
-        "power": "normal",
-        "precision": "low",
-        "reuse_kv": false,
-        "threads": 8,
-        "use_mmap": true
-      },
-      "schema_version": 2,
-      "status": "ok",
-      "timing": {
-        "load_us": 7947011,
-        "load_wall_ms": 7947.17,
-        "wall_ms": {
-          "max": 122901,
-          "mean": 122124,
-          "median": 122606,
-          "min": 121027,
-          "stdev": 788.945
-        }
-      },
-      "tokens_per_second": {
-        "decode": {
-          "max": 2.33197,
-          "mean": 2.31054,
-          "median": 2.29946,
-          "min": 2.29496,
-          "stdev": 0.0159511
-        },
-        "prefill": {
-          "max": 46.1013,
-          "mean": 45.6917,
-          "median": 45.6044,
-          "min": 45.2223,
-          "stdev": 0.31518
-        }
-      }
+    "custom_generation": {
+      "prompt_tokens_requested": 512,
+      "max_new_tokens": 256,
+      "prompt_token_id": 16,
+      "temperature": 0,
+      "top_k": 1,
+      "top_p": 1,
+      "batch_size": 1
+    },
+    "stock_iterations": {
+      "warmup": 1,
+      "measured": 3,
+      "target_measured": 3
+    },
+    "custom_iterations": {
+      "warmup": 1,
+      "measured": 3,
+      "target_measured": 3
     }
-  ],
-  "schema_version": 1,
-  "speedup_ratio": 0.980765049185461,
-  "status": "complete",
-  "stock_mnn": {
-    "max": 2.29946,
-    "median": 2.29946,
-    "min": 2.29946,
-    "p90": 2.29946
   },
-  "target_20_decode_tps_passed": false
+  "metrics": {
+    "stock_prefill_tps_mean": 45.096,
+    "stock_decode_tps_mean": 2.28587,
+    "stock_decode_tpot_ms_mean": 437.47,
+    "custom_prefill_tps_mean": 0.486717,
+    "custom_decode_tps_mean": 0.424895,
+    "custom_decode_tpot_ms_mean": 2353.52,
+    "custom_stock_decode_ratio": 0.18587889949997158,
+    "stock_custom_decode_ratio": 5.379846785676461,
+    "custom_stock_prefill_ratio": 0.010792908461947845
+  },
+  "custom_evidence": {
+    "selected_kernels": {
+      "summary": "custom_decode_loop;hotpath_replaced=true;full_custom_decode=true;linear=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,linear_attn_qkv_a_b_z_out,lm_head;rmsnorm=custom;rope=custom;attention=custom_gqa_decode;linear_attention_state=custom_gated_delta;sampling=custom_greedy;prefill_kv_build=custom;fallback_ops=none",
+      "hotpath_replaced": true,
+      "full_custom_decode": true,
+      "replaced_op_families": [
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj",
+        "rmsnorm",
+        "rope",
+        "attention",
+        "linear_attention_state",
+        "lm_head",
+        "sampling",
+        "prefill_kv_build"
+      ],
+      "fallback_op_families": []
+    },
+    "custom_path": {
+      "calls_mnn_llm_response_for_measured_generation": false,
+      "use_mnn_fallback": 0,
+      "decode_loop": "xq_session::generate -> xq_prefill/xq_decode_one -> CustomModel::prefill/runLayer/sampleGreedy",
+      "weight_format": "xq4_groupwise_w4a16"
+    },
+    "mnn_hotpath_trace_status": "ok",
+    "custom_kernel_microbench_status": "ok"
+  },
+  "artifacts": {
+    "final_report_md": "results/reports/final_devicefarm_report.md",
+    "code_walkthrough_md": "docs/kernel_library_code_walkthrough_final.md",
+    "presentation_pptx": "results/reports/qwen35_9b_full_custom_v16_presentation.pptx",
+    "presentation_contact_sheet_png": "results/reports/qwen35_9b_full_custom_v16_presentation_contact_sheet.png"
+  },
+  "verdict": {
+    "faithful_benchmark": true,
+    "requirement_1_met": true,
+    "requirement_2_met": true,
+    "custom_speedup_claim_allowed": false,
+    "speedup_verdict": "No speedup claimed. Custom decode is 0.1859x stock TPS; stock is 5.38x faster by decode TPS."
+  }
 }

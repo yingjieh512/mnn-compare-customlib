@@ -1,6 +1,6 @@
 # Kernel Library Code Walkthrough v14
 
-This document describes the current custom decode path used for the Qwen3.5-9B Device Farm comparison.
+Historical note: this document describes the v14 custom decode-hotpath state before the final v16 full-custom implementation. It is retained for audit trail only. The current final implementation and benchmark evidence are in `docs/kernel_library_code_walkthrough_final.md` and `results/reports/final_devicefarm_report.md`.
 
 ## Architecture
 

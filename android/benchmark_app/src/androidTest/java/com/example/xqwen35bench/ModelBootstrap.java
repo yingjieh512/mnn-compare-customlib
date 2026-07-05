@@ -148,8 +148,14 @@ final class ModelBootstrap {
                 && new File(dir, "tokenizer.mtok").isFile()
                 && new File(dir, "embeddings_bf16.bin").isFile()
                 && new File(dir, "xqwen35_manifest.json").isFile()
+                && new File(dir, "lm_head_weight.xq4").isFile()
                 && new File(dir, "layers_3_self_attn_q_proj_weight.xq4").isFile()
-                && new File(dir, "layers_0_linear_attn_in_proj_qkv_weight.xq4").isFile();
+                && new File(dir, "layers_0_linear_attn_in_proj_qkv_weight.xq4").isFile()
+                && new File(dir, "layers_0_linear_attn_in_proj_a_weight.xq4").isFile()
+                && new File(dir, "layers_0_linear_attn_in_proj_b_weight.xq4").isFile()
+                && new File(dir, "layers_0_linear_attn_conv1d_weight.f32").isFile()
+                && new File(dir, "layers_0_linear_attn_A_log.f32").isFile()
+                && new File(dir, "layers_0_linear_attn_dt_bias.f32").isFile();
     }
 
     private static File findModelDir(File root, StringBuilder discovery) {

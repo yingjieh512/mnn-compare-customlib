@@ -504,6 +504,9 @@ xq_status Session::reset() {
     if (kernel_trace_) {
         kernel_trace_->reset();
     }
+    if (custom_model_) {
+        custom_model_->resetState();
+    }
 #if defined(XQ_ENABLE_MNN)
     copyString(metrics_.backend, sizeof(metrics_.backend), mnn_llm_ ? "mnn_fallback_cpu" : options_.backend);
 #else
