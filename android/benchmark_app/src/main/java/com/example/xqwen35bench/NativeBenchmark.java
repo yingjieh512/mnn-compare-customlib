@@ -8,5 +8,10 @@ public final class NativeBenchmark {
     private NativeBenchmark() {}
 
     public static native String runBenchmark(
-            String modelDir, int promptTokens, int maxNewTokens, int warmupIterations, int measuredIterations);
+            String modelDir,
+            String customBackend,
+            int promptTokens,
+            int maxNewTokens,
+            int warmupIterations,
+            int measuredIterations);
 }

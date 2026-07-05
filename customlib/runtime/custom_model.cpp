@@ -111,6 +111,70 @@ std::string jsonEscape(const std::string& value) {
     return oss.str();
 }
 
+std::string traceOpFamily(const std::string& name) {
+    if (name.find("linear_q_proj") != std::string::npos) {
+        return "q_proj";
+    }
+    if (name.find("linear_k_proj") != std::string::npos) {
+        return "k_proj";
+    }
+    if (name.find("linear_v_proj") != std::string::npos) {
+        return "v_proj";
+    }
+    if (name.find("linear_o_proj") != std::string::npos) {
+        return "o_proj";
+    }
+    if (name.find("linear_gate_proj") != std::string::npos) {
+        return "gate_proj";
+    }
+    if (name.find("linear_up_proj") != std::string::npos) {
+        return "up_proj";
+    }
+    if (name.find("linear_down_proj") != std::string::npos) {
+        return "down_proj";
+    }
+    if (name.find("linear_attn") != std::string::npos) {
+        return "linear_attention_projection";
+    }
+    if (name.find("linear_attention_state") != std::string::npos ||
+        name.find("linear_attention_conv") != std::string::npos ||
+        name.find("linear_attention_qk") != std::string::npos ||
+        name.find("linear_attention_gated") != std::string::npos) {
+        return "linear_attention_state";
+    }
+    if (name.find("rmsnorm") != std::string::npos) {
+        return "rmsnorm";
+    }
+    if (name.find("rope") != std::string::npos) {
+        return "rope";
+    }
+    if (name.find("attention_score") != std::string::npos) {
+        return "attention_score";
+    }
+    if (name.find("attention_softmax") != std::string::npos) {
+        return "attention_softmax";
+    }
+    if (name.find("attention_v_reduce") != std::string::npos) {
+        return "attention_v_reduce";
+    }
+    if (name.find("attention") != std::string::npos) {
+        return "attention";
+    }
+    if (name.find("lm_head") != std::string::npos) {
+        return "lm_head";
+    }
+    if (name.find("sampling") != std::string::npos) {
+        return "sampling";
+    }
+    if (name.find("kv_cache") != std::string::npos || name.find("embedding_load") != std::string::npos) {
+        return "prefill_kv_build";
+    }
+    if (name.find("silu") != std::string::npos) {
+        return "activation";
+    }
+    return "other";
+}
+
 std::string layerPrefix(int index) {
     return "layers_" + std::to_string(index) + "_";
 }
@@ -319,7 +383,9 @@ std::string KernelTrace::toJson() const {
         }
         first = false;
         const KernelStat& s = item.second;
-        oss << "{\"name\":\"" << jsonEscape(item.first) << "\",\"calls\":" << s.calls << ",\"total_ms\":"
+        oss << "{\"name\":\"" << jsonEscape(item.first)
+            << "\",\"op_family\":\"" << traceOpFamily(item.first)
+            << "\",\"backend\":\"cpu\",\"calls\":" << s.calls << ",\"total_ms\":"
             << s.total_ms << ",\"mean_ms\":" << (s.calls ? s.total_ms / static_cast<double>(s.calls) : 0.0)
             << ",\"min_ms\":" << s.min_ms << ",\"max_ms\":" << s.max_ms << "}";
     }
@@ -386,7 +452,7 @@ bool CustomModel::load(const std::string& model_dir, std::string* error) {
     gate_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
     up_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
     ffn_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
-    logits_.assign(static_cast<size_t>(vocab_size_), 0.0f);
+    logits_.clear();
     resetState();
     return true;
 }
@@ -761,16 +827,24 @@ bool CustomModel::sampleGreedy(int32_t* token_id, KernelTrace* trace, std::strin
         *error = "lm_head matrix is not loaded";
         return false;
     }
-    runLinear("lm_head_custom", lm_head_, hidden_, &logits_, trace);
     const auto t0 = Clock::now();
+    float best_value = -std::numeric_limits<float>::infinity();
     int best = 0;
-    float best_value = logits_.empty() ? -std::numeric_limits<float>::infinity() : logits_[0];
-    for (int i = 1; i < static_cast<int>(logits_.size()); ++i) {
-        const float value = logits_[static_cast<size_t>(i)];
-        if (value > best_value) {
-            best_value = value;
-            best = i;
+    if (lm_head_.bits == 4) {
+        best = kernels::gemvW4A16ArgmaxNeon(lm_head_, hidden_.data(), &best_value);
+    } else {
+        runLinear("lm_head_custom_fallback_logits", lm_head_, hidden_, &logits_, trace);
+        best_value = logits_.empty() ? -std::numeric_limits<float>::infinity() : logits_[0];
+        for (int i = 1; i < static_cast<int>(logits_.size()); ++i) {
+            const float value = logits_[static_cast<size_t>(i)];
+            if (value > best_value) {
+                best_value = value;
+                best = i;
+            }
         }
+    }
+    if (trace) {
+        trace->add("lm_head_custom", elapsedMs(t0, Clock::now()));
     }
     *token_id = best;
     if (trace) {

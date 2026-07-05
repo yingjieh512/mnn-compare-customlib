@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -80,6 +81,21 @@ std::string jsonEscape(const std::string& value) {
     return oss.str();
 }
 
+std::string lowerAscii(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return value;
+}
+
+std::string normalizeStockBackend(const std::string& requested) {
+    const std::string value = lowerAscii(requested.empty() ? "cpu" : requested);
+    if (value == "cpu" || value == "vulkan" || value == "opencl" || value == "nnapi") {
+        return value;
+    }
+    return "cpu";
+}
+
 double tokensPerSecond(int tokens, int64_t usec) {
     if (tokens <= 0 || usec <= 0) {
         return 0.0;
@@ -142,14 +158,17 @@ void appendTpotStatsFromTps(std::ostringstream& oss, const Stats& tps_stats) {
 
 std::string errorJson(const std::string& model_dir,
                       const std::string& error,
+                      const std::string& backend_requested,
                       int prompt_tokens,
                       int max_new_tokens) {
     const std::string config_path = model_dir + "/llm_config.json";
     std::ostringstream oss;
     oss << "{"
-        << "\"schema_version\":2,"
+        << "\"schema_version\":3,"
         << "\"engine\":\"mnn_stock\","
-        << "\"backend\":\"cpu\","
+        << "\"backend\":\"error\","
+        << "\"backend_requested\":\"" << jsonEscape(backend_requested) << "\","
+        << "\"backend_actual\":\"error\","
         << "\"status\":\"error\","
         << "\"error\":\"" << jsonEscape(error) << "\","
         << "\"model_dir\":\"" << jsonEscape(model_dir) << "\","
@@ -162,6 +181,13 @@ std::string errorJson(const std::string& model_dir,
         << ",\"max_new_tokens\":" << max_new_tokens << "}"
         << "}";
     return oss.str();
+}
+
+std::string errorJson(const std::string& model_dir,
+                      const std::string& error,
+                      int prompt_tokens,
+                      int max_new_tokens) {
+    return errorJson(model_dir, error, "cpu", prompt_tokens, max_new_tokens);
 }
 
 #if defined(XQ_ENABLE_MNN)
@@ -213,16 +239,17 @@ struct IterationResult {
 };
 
 std::string runStockBenchmark(const std::string& model_dir,
+                              const std::string& backend_requested,
                               int prompt_tokens,
                               int max_new_tokens,
                               int warmup_iterations,
                               int measure_iterations) {
     const std::string config_path = model_dir + "/llm_config.json";
     if (model_dir.empty()) {
-        return errorJson(model_dir, "model_dir is empty", prompt_tokens, max_new_tokens);
+        return errorJson(model_dir, "model_dir is empty", backend_requested, prompt_tokens, max_new_tokens);
     }
     if (!fileExists(config_path)) {
-        return errorJson(model_dir, "missing llm_config.json", prompt_tokens, max_new_tokens);
+        return errorJson(model_dir, "missing llm_config.json", backend_requested, prompt_tokens, max_new_tokens);
     }
 
     const std::string tmp_path = model_dir + "/tmp";
@@ -232,7 +259,7 @@ std::string runStockBenchmark(const std::string& model_dir,
         MNN::Transformer::Llm::createLLM(config_path),
         MNN::Transformer::Llm::destroy);
     if (!llm) {
-        return errorJson(model_dir, "Llm::createLLM returned null", prompt_tokens, max_new_tokens);
+        return errorJson(model_dir, "Llm::createLLM returned null", backend_requested, prompt_tokens, max_new_tokens);
     }
 
     std::string error;
@@ -242,7 +269,7 @@ std::string runStockBenchmark(const std::string& model_dir,
         !setLlmConfig(llm.get(), "{\"precision\":\"low\"}", "precision", &error) ||
         !setLlmConfig(llm.get(), "{\"memory\":\"low\"}", "memory", &error) ||
         !setLlmConfig(llm.get(), "{\"power\":\"normal\"}", "power", &error) ||
-        !setLlmConfig(llm.get(), "{\"backend_type\":\"cpu\"}", "backend_type", &error) ||
+        !setLlmConfig(llm.get(), "{\"backend_type\":\"" + jsonEscape(backend_requested) + "\"}", "backend_type", &error) ||
         !setLlmConfig(llm.get(), "{\"thread_num\":8}", "thread_num", &error) ||
         !setLlmConfig(llm.get(), "{\"dynamic_option\":8}", "dynamic_option", &error) ||
         !setLlmConfig(llm.get(), "{\"attention_mode\":8}", "attention_mode", &error) ||
@@ -250,12 +277,12 @@ std::string runStockBenchmark(const std::string& model_dir,
         !setLlmConfig(llm.get(), "{\"tmp_path\":\"" + jsonEscape(tmp_path) + "\"}", "tmp_path", &error) ||
         !setLlmConfig(llm.get(), "{\"cpu_sme2_neon_division_ratio\":41}", "cpu_sme2_neon_division_ratio", &error) ||
         !setLlmConfig(llm.get(), "{\"cpu_sme_core_num\":2}", "cpu_sme_core_num", &error)) {
-        return errorJson(model_dir, error, prompt_tokens, max_new_tokens);
+        return errorJson(model_dir, error, backend_requested, prompt_tokens, max_new_tokens);
     }
 
     const auto load_start = std::chrono::steady_clock::now();
     if (!llm->load()) {
-        return errorJson(model_dir, "Llm::load failed", prompt_tokens, max_new_tokens);
+        return errorJson(model_dir, "Llm::load failed", backend_requested, prompt_tokens, max_new_tokens);
     }
     const auto load_end = std::chrono::steady_clock::now();
     const double load_wall_ms = std::chrono::duration<double, std::milli>(load_end - load_start).count();
@@ -324,9 +351,11 @@ std::string runStockBenchmark(const std::string& model_dir,
 
     std::ostringstream oss;
     oss << "{"
-        << "\"schema_version\":2,"
+        << "\"schema_version\":3,"
         << "\"engine\":\"mnn_stock\","
-        << "\"backend\":\"cpu\","
+        << "\"backend\":\"" << jsonEscape(backend_requested) << "\","
+        << "\"backend_requested\":\"" << jsonEscape(backend_requested) << "\","
+        << "\"backend_actual\":\"" << jsonEscape(backend_requested) << "\","
         << "\"status\":\"" << (ok ? "ok" : "error") << "\",";
     if (!ok) {
         oss << "\"error\":\"" << jsonEscape(terminal_error.empty() ? "not all measurement iterations completed" : terminal_error) << "\",";
@@ -338,6 +367,8 @@ std::string runStockBenchmark(const std::string& model_dir,
         << "\"artifact\":{\"model_dir\":\"" << jsonEscape(model_dir) << "\","
         << "\"config_path\":\"" << jsonEscape(config_path) << "\"},"
         << "\"runtime\":{\"threads\":" << kThreads
+        << ",\"backend_type_configured\":\"" << jsonEscape(backend_requested) << "\""
+        << ",\"backend_actual_verified\":false"
         << ",\"precision\":\"low\",\"memory\":\"low\",\"power\":\"normal\","
         << "\"use_mmap\":true,\"reuse_kv\":false,\"dynamic_option\":8,"
         << "\"attention_mode\":8,\"cpu_sme2_neon_division_ratio\":41,\"cpu_sme_core_num\":2},"
@@ -388,19 +419,34 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_com_example_xqwen35stock_NativeStockBenchmark_runBenchmark(JNIEnv* env,
                                                                 jclass,
                                                                 jstring model_dir,
+                                                                jstring backend,
                                                                 jint prompt_tokens,
                                                                 jint max_new_tokens,
                                                                 jint warmup_iterations,
                                                                 jint measure_iterations) {
     const std::string model = jstringToString(env, model_dir);
-    __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_START engine=mnn_stock model_dir=%s", model.c_str());
+    const std::string backend_requested = normalizeStockBackend(jstringToString(env, backend));
+    __android_log_print(ANDROID_LOG_INFO,
+                        "XQBENCH",
+                        "BENCH_START engine=mnn_stock model_dir=%s backend=%s",
+                        model.c_str(),
+                        backend_requested.c_str());
     const int warmups = std::max(0, static_cast<int>(warmup_iterations));
     const int measured = std::max(1, static_cast<int>(measure_iterations));
 
 #if defined(XQ_ENABLE_MNN)
-    std::string json = runStockBenchmark(model, static_cast<int>(prompt_tokens), static_cast<int>(max_new_tokens), warmups, measured);
+    std::string json = runStockBenchmark(model,
+                                         backend_requested,
+                                         static_cast<int>(prompt_tokens),
+                                         static_cast<int>(max_new_tokens),
+                                         warmups,
+                                         measured);
 #else
-    std::string json = errorJson(model, "stock JNI was built without XQ_ENABLE_MNN", prompt_tokens, max_new_tokens);
+    std::string json = errorJson(model,
+                                 "stock JNI was built without XQ_ENABLE_MNN",
+                                 backend_requested,
+                                 prompt_tokens,
+                                 max_new_tokens);
 #endif
 
     __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_RESULT_JSON %s", json.c_str());

@@ -21,22 +21,33 @@ public final class StockBenchmarkInstrumentationTest {
         int maxNewTokens = parseInt(args.getString("max_new_tokens", ""), 256);
         int warmupIterations = parseInt(args.getString("warmup_iterations", ""), 1);
         int measuredIterations = parseInt(args.getString("measured_iterations", ""), 5);
+        String backend = sanitizeBackend(args.getString("backend", "cpu"));
+        boolean allowBackendFailure = parseBoolean(args.getString("allow_backend_failure", "false"));
         File root = context.getExternalFilesDir(null);
         File dir = ModelBootstrap.resolveModelDir(context);
         String json = NativeStockBenchmark.runBenchmark(
-                dir.getAbsolutePath(), promptTokens, maxNewTokens, warmupIterations, measuredIterations);
+                dir.getAbsolutePath(),
+                backend,
+                promptTokens,
+                maxNewTokens,
+                warmupIterations,
+                measuredIterations);
         Log.i("XQBENCH", "BENCH_RESULT_JSON " + json);
         if (root != null) {
             File artifactDir = new File(root, "bench_artifacts");
             if (!artifactDir.mkdirs() && !artifactDir.isDirectory()) {
                 throw new IllegalStateException("failed to create " + artifactDir.getAbsolutePath());
             }
-            try (FileOutputStream out = new FileOutputStream(new File(artifactDir, "stock_mnn_benchmark.json"))) {
+            try (FileOutputStream out = new FileOutputStream(
+                    new File(artifactDir, "stock_mnn_" + backend + "_benchmark.json"))) {
                 out.write(json.getBytes(StandardCharsets.UTF_8));
             }
         }
-        if (!json.contains("\"status\":\"ok\"")) {
+        if (!json.contains("\"status\":\"ok\"") && !(allowBackendFailure && !backend.equals("cpu"))) {
             throw new AssertionError("Benchmark returned non-ok JSON: " + json);
+        }
+        if (!json.contains("\"backend_requested\":\"" + backend + "\"")) {
+            throw new AssertionError("stock backend request evidence missing: " + json);
         }
     }
 
@@ -46,5 +57,23 @@ public final class StockBenchmarkInstrumentationTest {
         } catch (NumberFormatException e) {
             return fallback;
         }
+    }
+
+    private static boolean parseBoolean(String value) {
+        return value != null && value.equalsIgnoreCase("true");
+    }
+
+    private static String sanitizeBackend(String value) {
+        if (value == null || value.isEmpty()) {
+            return "cpu";
+        }
+        String normalized = value.toLowerCase();
+        if (normalized.equals("cpu")
+                || normalized.equals("vulkan")
+                || normalized.equals("opencl")
+                || normalized.equals("nnapi")) {
+            return normalized;
+        }
+        return "cpu";
     }
 }

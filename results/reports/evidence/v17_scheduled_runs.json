@@ -1,0 +1,74 @@
+{
+  "project_arn": "arn:aws:devicefarm:us-west-2:884244642857:project:64d2cc31-abd6-49f8-97da-162f82410bc0",
+  "device_pool_arn": "arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213",
+  "runs": [
+    {
+      "name": "stock_mnn_cpu_v17_backend_sweep",
+      "engine": "stock_mnn",
+      "backend": "cpu",
+      "run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7e44236c-db1a-4900-9fd8-7d8d7d654e28",
+      "status": "COMPLETED",
+      "app_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/739f2f5e-531d-4def-af5b-7b25febbac03",
+      "test_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/60054c98-d228-4fb7-9875-189f9189bace",
+      "test_spec_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/f93e77db-1e6e-401e-999f-baa396e76110",
+      "result": "PASSED",
+      "device_minutes": {
+        "total": 25.35,
+        "metered": 25.16,
+        "unmetered": 0.0
+      },
+      "created": 1783230323.878
+    },
+    {
+      "name": "stock_mnn_vulkan_v17_backend_sweep",
+      "engine": "stock_mnn",
+      "backend": "vulkan",
+      "run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/067c195b-1e14-4bca-998d-c7d38a65c5c7",
+      "status": "COMPLETED",
+      "app_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/739f2f5e-531d-4def-af5b-7b25febbac03",
+      "test_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/60054c98-d228-4fb7-9875-189f9189bace",
+      "test_spec_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/163034c7-0b0a-4fd4-85c5-99c027cc6e4d",
+      "result": "PASSED",
+      "device_minutes": {
+        "total": 18.05,
+        "metered": 17.94,
+        "unmetered": 0.0
+      },
+      "created": 1783230328.417
+    },
+    {
+      "name": "customlib_cpu_v17_backend_sweep",
+      "engine": "customlib",
+      "backend": "cpu",
+      "run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/8d765268-aacd-4f52-b845-f5370b4d522f",
+      "status": "COMPLETED",
+      "app_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/814932cd-2ae1-4cd7-93b6-236116484833",
+      "test_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/89240b1e-9924-46ff-80d7-1e9b50efa05d",
+      "test_spec_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/5405fee4-580e-4033-8abc-a58e529c39b6",
+      "result": "PASSED",
+      "device_minutes": {
+        "total": 46.41,
+        "metered": 46.22,
+        "unmetered": 0.0
+      },
+      "created": 1783230333.046
+    },
+    {
+      "name": "customlib_cpu_vulkan_hybrid_v17_backend_sweep",
+      "engine": "customlib",
+      "backend": "cpu_vulkan_hybrid",
+      "run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1de54984-c9d9-41d1-81c1-7eed941585ed",
+      "status": "COMPLETED",
+      "app_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/814932cd-2ae1-4cd7-93b6-236116484833",
+      "test_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/89240b1e-9924-46ff-80d7-1e9b50efa05d",
+      "test_spec_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/83b62e19-87a5-4a38-95f0-9ec464700999",
+      "result": "PASSED",
+      "device_minutes": {
+        "total": 41.8,
+        "metered": 41.61,
+        "unmetered": 0.0
+      },
+      "created": 1783230337.349
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 # Kernel Library Code Walkthrough Final
 
-This document describes the final v16 custom inference library used for the Qwen3.5-9B AWS Device Farm comparison. It is written to match the measured code path and the final `BENCH_RESULT_JSON` evidence, not a planned architecture.
+This document describes the final v17 custom inference library used for the Qwen3.5-9B AWS Device Farm backend sweep. It is written to match the measured code path and the final `BENCH_RESULT_JSON` evidence, not a planned architecture.
 
 ## Final Measured Path
 
-The final custom Android benchmark sets `xq_options.use_mnn_fallback = 0` in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` and enters the public ABI in `customlib/include/xqwen35.h`.
+The final custom Android benchmark sets `xq_options.use_mnn_fallback = 0` in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` and enters the public ABI in `customlib/include/xqwen35.h`. The best v17 custom run requested `cpu_vulkan_hybrid`, but the benchmark JSON reports `custom_backend_actual = cpu`; no custom Vulkan kernel is claimed.
 
 The measured custom generation path is:
 
@@ -47,6 +47,7 @@ The optional MNN fallback connector still exists for API compatibility, but it i
 | Packer | `customlib/packer/pack_qwen35_xq4.py` | Converts Qwen3.5 safetensors into the custom W4A16 package and manifest. |
 | Stock Android app | `android/app` | Stock MNN baseline instrumentation. |
 | Custom Android app | `android/benchmark_app` | Customlib instrumentation, JSON evidence, MNN hot-path trace evidence. |
+| Backend probe | `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` | Normalizes `cpu`, `vulkan`, and `cpu_vulkan_hybrid`; probes Vulkan availability without pretending kernels ran. |
 | AWS connector | `scripts/aws` and Android bootstrap | Uploads, schedules, downloads, and verifies Device Farm artifacts. |
 
 ## Model Package And Loader
@@ -80,13 +81,24 @@ x_sum    = sum(activation_i)
 partial  = scale * (code_dot - zero * x_sum)
 ```
 
-The arm64 NEON path processes 16 int4 codes at a time with byte loads, nibble unpacking, widening conversion, and vector FMA. The scalar tail handles uneven groups and the non-NEON host build. The final Qwen3.5 shapes exercised by Device Farm include:
+The arm64 NEON path processes 16 int4 codes at a time with byte loads, nibble unpacking, widening conversion, and vector FMA. The scalar tail handles uneven groups and the non-NEON host build.
+
+The v17 optimization pass added:
+
+- persistent worker threads for large row-parallel GEMV calls, avoiding per-kernel thread creation inside the decode loop
+- per-input activation group-sum precomputation so every row reuses the same `x_sum` values
+- streaming `gemvW4A16ArgmaxNeon` for `lm_head` greedy sampling, avoiding materializing the full logits vector in the measured W4 path
+- backend tags in each trace row so CPU/Vulkan/hybrid evidence cannot be conflated
+
+The final Qwen3.5 shapes exercised by Device Farm include:
 
 - 4096 x 4096 attention and output projections
 - 12288 x 4096 MLP gate/up projections
 - 4096 x 12288 MLP down projection
 - grouped key/value projection shapes used by the full-attention layers
 - 248320 x 4096 `lm_head`
+
+The generated W4 file contains no `gemvLowBitReference` call. The older W2/W3 generated files still call the reference helper, but they are not selected for the final W4A16 Qwen3.5 path.
 
 ## Custom Prefill
 
@@ -192,7 +204,7 @@ The final custom path removes hash-based token generation.
 
 1. Applies final RMSNorm.
 2. Runs `lm_head_custom` with the packed W4A16 `lm_head.weight`.
-3. Computes greedy argmax over real logits.
+3. Computes greedy argmax over real logits. In the measured W4 path this uses streaming argmax directly over `lm_head` rows.
 4. Returns the selected token.
 
 Trace rows include:
@@ -206,9 +218,11 @@ The final benchmark settings use `temperature = 0`, `top_k = 1`, and `top_p = 1`
 
 ### MNN Connector
 
-The stock baseline is implemented in `android/app/src/main/cpp/stock_benchmark_jni.cpp`. It creates `MNN::Transformer::Llm`, calls stock MNN generation, and records stock prefill TPS, decode TPS, TPOT, and instrumentation artifacts.
+The stock baseline is implemented in `android/app/src/main/cpp/stock_benchmark_jni.cpp`. It creates `MNN::Transformer::Llm`, configures the requested backend string, calls stock MNN generation, and records stock prefill TPS, decode TPS, TPOT, and instrumentation artifacts.
 
 The custom APK also contains an MNN hot-path trace helper in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp`. That helper runs after measured custom generation to collect MNN op type/name wall clock evidence. It is not on the measured custom generation path.
+
+The v17 stock CPU run completed. The v17 stock Vulkan-request run initialized the Adreno Vulkan stack and then crashed before `BENCH_RESULT_JSON`, so there is no stock Vulkan TPS/TPOT number.
 
 ### Fallback Connector
 
@@ -225,6 +239,17 @@ The JNI bridge exposes two instrumentation entry points:
 
 Both accept prompt length, max new tokens, prompt token id, warmup iterations, measured iterations, and model directory. Both return `BENCH_RESULT_JSON` and write JSON artifacts under the Device Farm log directory.
 
+### Vulkan Probe Connector
+
+`android/benchmark_app/src/main/cpp/benchmark_jni.cpp` accepts a custom backend request of `cpu`, `vulkan`, or `cpu_vulkan_hybrid`.
+
+For `vulkan` and `cpu_vulkan_hybrid`, it probes:
+
+- `dlopen("libvulkan.so")`
+- `dlsym("vkGetInstanceProcAddr")`
+
+The v17 Device Farm hybrid-request run reports probe success, but `full_or_hybrid_kernel_status = not_enabled_in_this_build` and `custom_backend_actual = cpu`. Therefore the final report does not claim custom Vulkan kernel execution.
+
 ### Benchmark Connector
 
 The custom benchmark JSON is assembled in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp`.
@@ -233,6 +258,8 @@ It records:
 
 - selected kernels and op coverage
 - `fallback_op_families = []`
+- requested and actual backend
+- per-op-family backend map
 - custom path booleans proving the measured path did not call MNN generation
 - per-run prefill/decode timing
 - measured mean TPS/TPOT
@@ -244,10 +271,12 @@ It records:
 
 The Android instrumentation bootstrap downloads split model parts, reassembles the zip, verifies SHA-256, unzips the package, and deletes the zip to preserve device storage.
 
-Final Device Farm evidence:
+Final v17 Device Farm evidence:
 
-- Stock run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/baed9f8e-2a52-4b93-8584-60c305b73757`
-- Custom run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7bc0f1d8-7640-4574-8309-da6bdb9fa642`
+- Stock CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7e44236c-db1a-4900-9fd8-7d8d7d654e28`
+- Stock Vulkan-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/067c195b-1e14-4bca-998d-c7d38a65c5c7`
+- Custom CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/8d765268-aacd-4f52-b845-f5370b4d522f`
+- Custom CPU/Vulkan-hybrid-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1de54984-c9d9-41d1-81c1-7eed941585ed`
 - Device: Samsung Galaxy S26 Ultra, SM-S948U1, Android 16
 - Full model SHA-256 verified on-device: `9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34`
 
@@ -257,6 +286,12 @@ Final Device Farm evidence:
 
 ```text
 custom_decode_loop;hotpath_replaced=true;full_custom_decode=true;linear=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,linear_attn_qkv_a_b_z_out,lm_head;rmsnorm=custom;rope=custom;attention=custom_gqa_decode;linear_attention_state=custom_gated_delta;sampling=custom_greedy;prefill_kv_build=custom;fallback_ops=none
+```
+
+The final selected-kernel backend map reports CPU for all op families:
+
+```text
+q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,rmsnorm,rope,attention,linear_attention_state,lm_head,sampling,prefill_kv_build -> cpu
 ```
 
 Final replaced op families:

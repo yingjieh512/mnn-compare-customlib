@@ -1,0 +1,123 @@
+﻿[
+  {
+    "name": "qwen35_xq_fullcustom_v17_part00.zippart",
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/8986e1bc-7a31-41d9-bff0-d52f80ca02a3",
+    "metadata": null,
+    "contentType": "application/octet-stream",
+    "bytes": 4500000000,
+    "path": "out\\qwen35_xq_fullcustom_v17_parts\\qwen35_xq_fullcustom_v17_part00.zippart",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "qwen35_xq_fullcustom_v17_part01.zippart",
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/b00760e9-7724-4bbc-9302-c4195bc0d394",
+    "metadata": null,
+    "contentType": "application/octet-stream",
+    "bytes": 4500000000,
+    "path": "out\\qwen35_xq_fullcustom_v17_parts\\qwen35_xq_fullcustom_v17_part01.zippart",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "qwen35_xq_fullcustom_v17_part02.zippart",
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/417fe757-73b6-40ff-8001-5ad4ef0b653d",
+    "metadata": null,
+    "contentType": "application/octet-stream",
+    "bytes": 2266405198,
+    "path": "out\\qwen35_xq_fullcustom_v17_parts\\qwen35_xq_fullcustom_v17_part02.zippart",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "stock_mnn_benchmark_v17_backend_sweep_debug.apk",
+    "type": "ANDROID_APP",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/739f2f5e-531d-4def-af5b-7b25febbac03",
+    "metadata": "{\"device_admin\":false,\"activity_name\":\"com.example.xqwen35stock.MainActivity\",\"version_name\":\"0.1.0\",\"screens\":[\"small\",\"normal\",\"large\",\"xlarge\"],\"error_type\":null,\"package_name\":\"com.example.xqwen35stock\",\"version_code\":\"1\",\"sdk_version\":\"29\",\"native_code\":[\"arm64-v8a\"],\"target_sdk_version\":\"35\"}",
+    "contentType": "application/octet-stream",
+    "bytes": 8974158,
+    "path": "android\\app\\build\\outputs\\apk\\debug\\stock_mnn_benchmark-debug.apk",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "stock_mnn_benchmark_v17_backend_sweep_androidTest.apk",
+    "type": "INSTRUMENTATION_TEST_PACKAGE",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/60054c98-d228-4fb7-9875-189f9189bace",
+    "metadata": "{\"test_package_name\":null,\"instrumentation_runner\":\"androidx.test.runner.AndroidJUnitRunner\",\"error_type\":null,\"package_name\":\"com.example.xqwen35stock.test\"}",
+    "contentType": "application/octet-stream",
+    "bytes": 4478781,
+    "path": "android\\app\\build\\outputs\\apk\\androidTest\\debug\\stock_mnn_benchmark-debug-androidTest.apk",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "customlib_benchmark_v17_backend_sweep_debug.apk",
+    "type": "ANDROID_APP",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/814932cd-2ae1-4cd7-93b6-236116484833",
+    "metadata": "{\"device_admin\":false,\"activity_name\":\"com.example.xqwen35bench.MainActivity\",\"version_name\":\"0.1.0\",\"screens\":[\"small\",\"normal\",\"large\",\"xlarge\"],\"error_type\":null,\"package_name\":\"com.example.xqwen35bench\",\"version_code\":\"1\",\"sdk_version\":\"29\",\"native_code\":[\"arm64-v8a\"],\"target_sdk_version\":\"35\"}",
+    "contentType": "application/octet-stream",
+    "bytes": 9121606,
+    "path": "android\\benchmark_app\\build\\outputs\\apk\\debug\\customlib_benchmark-debug.apk",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "customlib_benchmark_v17_backend_sweep_androidTest.apk",
+    "type": "INSTRUMENTATION_TEST_PACKAGE",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/89240b1e-9924-46ff-80d7-1e9b50efa05d",
+    "metadata": "{\"test_package_name\":null,\"instrumentation_runner\":\"androidx.test.runner.AndroidJUnitRunner\",\"error_type\":null,\"package_name\":\"com.example.xqwen35bench.test\"}",
+    "contentType": "application/octet-stream",
+    "bytes": 4480121,
+    "path": "android\\benchmark_app\\build\\outputs\\apk\\androidTest\\debug\\customlib_benchmark-debug-androidTest.apk",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "stock_cpu_v17.yml",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/f93e77db-1e6e-401e-999f-baa396e76110",
+    "metadata": "{\"valid\":true,\"androidTestHost\":\"amazon_linux_2\",\"androidAmazonLinux2HostFlag\":true}",
+    "contentType": "application/octet-stream",
+    "bytes": 6448,
+    "path": "out\\devicefarm_private\\v17\\stock_cpu_v17.yml",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "stock_vulkan_v17.yml",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/163034c7-0b0a-4fd4-85c5-99c027cc6e4d",
+    "metadata": "{\"valid\":true,\"androidTestHost\":\"amazon_linux_2\",\"androidAmazonLinux2HostFlag\":true}",
+    "contentType": "application/octet-stream",
+    "bytes": 6485,
+    "path": "out\\devicefarm_private\\v17\\stock_vulkan_v17.yml",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "custom_cpu_v17.yml",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/5405fee4-580e-4033-8abc-a58e529c39b6",
+    "metadata": "{\"valid\":true,\"androidTestHost\":\"amazon_linux_2\",\"androidAmazonLinux2HostFlag\":true}",
+    "contentType": "application/octet-stream",
+    "bytes": 6457,
+    "path": "out\\devicefarm_private\\v17\\custom_cpu_v17.yml",
+    "url": "REDACTED_URL"
+  },
+  {
+    "name": "custom_cpu_vulkan_hybrid_v17.yml",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/83b62e19-87a5-4a38-95f0-9ec464700999",
+    "metadata": "{\"valid\":true,\"androidTestHost\":\"amazon_linux_2\",\"androidAmazonLinux2HostFlag\":true}",
+    "contentType": "application/octet-stream",
+    "bytes": 6513,
+    "path": "out\\devicefarm_private\\v17\\custom_cpu_vulkan_hybrid_v17.yml",
+    "url": "REDACTED_URL"
+  }
+]

@@ -1,0 +1,26 @@
+﻿[
+  {
+    "name": "stock_cpu_v17.yml",
+    "redacted_path": "results\\reports\\evidence\\stock_cpu_v17_test_spec_redacted.yml",
+    "backend": "cpu",
+    "allow_backend_failure": false
+  },
+  {
+    "name": "stock_vulkan_v17.yml",
+    "redacted_path": "results\\reports\\evidence\\stock_vulkan_v17_test_spec_redacted.yml",
+    "backend": "vulkan",
+    "allow_backend_failure": true
+  },
+  {
+    "name": "custom_cpu_v17.yml",
+    "redacted_path": "results\\reports\\evidence\\custom_cpu_v17_test_spec_redacted.yml",
+    "backend": "cpu",
+    "allow_backend_failure": false
+  },
+  {
+    "name": "custom_cpu_vulkan_hybrid_v17.yml",
+    "redacted_path": "results\\reports\\evidence\\custom_cpu_vulkan_hybrid_v17_test_spec_redacted.yml",
+    "backend": "cpu_vulkan_hybrid",
+    "allow_backend_failure": false
+  }
+]

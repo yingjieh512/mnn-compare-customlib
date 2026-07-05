@@ -186,7 +186,7 @@ void testDelta() {
 
 void testLmHeadArgmaxAndGreedySampling() {
     const int vocab = 4;
-    const int hidden = 3;
+    const int hidden = 4;
     const float logits[vocab] = {-1.0f, 0.5f, 2.0f, 1.9f};
     int best = 0;
     for (int i = 1; i < vocab; ++i) {
@@ -196,12 +196,12 @@ void testLmHeadArgmaxAndGreedySampling() {
     }
     assert(best == 2);
 
-    const std::vector<float> h = {0.25f, -0.5f, 2.0f};
+    const std::vector<float> h = {0.25f, -0.5f, 2.0f, 0.125f};
     const std::vector<float> w = {
-        1.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, 0.5f,
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.5f,
     };
     int projected_best = 0;
     float projected_value = -std::numeric_limits<float>::infinity();
@@ -216,6 +216,26 @@ void testLmHeadArgmaxAndGreedySampling() {
         }
     }
     assert(projected_best == 2);
+
+    auto q = xq::kernels::quantizeLowBit(w.data(), vocab, hidden, 4, 4);
+    std::vector<float> dense;
+    xq::kernels::dequantizeLowBitMatrix(q, &dense);
+    int expected_best = 0;
+    float expected_value = -std::numeric_limits<float>::infinity();
+    for (int r = 0; r < vocab; ++r) {
+        float acc = 0.0f;
+        for (int c = 0; c < hidden; ++c) {
+            acc += dense[static_cast<size_t>(r * hidden + c)] * h[static_cast<size_t>(c)];
+        }
+        if (acc > expected_value) {
+            expected_value = acc;
+            expected_best = r;
+        }
+    }
+    float got_value = 0.0f;
+    const int got_best = xq::kernels::gemvW4A16ArgmaxNeon(q, h.data(), &got_value);
+    assert(got_best == expected_best);
+    requireClose(got_value, expected_value, 1.0e-5f, "lm_head_argmax_w4");
 }
 
 }  // namespace

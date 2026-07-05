@@ -1,3 +1,0 @@
-xq_kernel_correctness 6 0.00239118
-xq_runtime_correctness 5 0.0090786
----

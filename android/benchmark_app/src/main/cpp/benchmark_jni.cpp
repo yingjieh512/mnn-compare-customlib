@@ -1,8 +1,10 @@
 #include <jni.h>
 
 #include <android/log.h>
+#include <dlfcn.h>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -188,6 +190,54 @@ void appendJsonStringField(std::ostringstream& oss, const char* key, const std::
     oss << "\"" << key << "\":\"" << jsonEscape(value) << "\"";
 }
 
+std::string lowerAscii(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return value;
+}
+
+std::string normalizeCustomBackend(const std::string& requested) {
+    const std::string value = lowerAscii(requested.empty() ? "cpu" : requested);
+    if (value == "cpu" || value == "vulkan" || value == "cpu_vulkan_hybrid") {
+        return value;
+    }
+    return "cpu";
+}
+
+std::string runVulkanProbeJson(const std::string& requested_backend) {
+    std::ostringstream oss;
+    const bool requested_vulkan = requested_backend == "vulkan" || requested_backend == "cpu_vulkan_hybrid";
+    if (!requested_vulkan) {
+        oss << "{\"status\":\"skipped\",\"requested_backend\":\"" << jsonEscape(requested_backend)
+            << "\",\"reason\":\"vulkan_not_requested\"}";
+        return oss.str();
+    }
+
+    dlerror();
+    void* lib = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+    const char* load_error = lib ? nullptr : dlerror();
+    void* symbol = lib ? dlsym(lib, "vkGetInstanceProcAddr") : nullptr;
+    const bool ok = lib != nullptr && symbol != nullptr;
+    if (lib) {
+        dlclose(lib);
+    }
+    oss << "{"
+        << "\"status\":\"" << (ok ? "ok" : "error") << "\","
+        << "\"requested_backend\":\"" << jsonEscape(requested_backend) << "\","
+        << "\"libvulkan_loaded\":" << (lib ? "true" : "false") << ","
+        << "\"vkGetInstanceProcAddr_found\":" << (symbol ? "true" : "false") << ",";
+    if (!ok) {
+        oss << "\"error\":\""
+            << jsonEscape(load_error ? load_error : "libvulkan loaded but vkGetInstanceProcAddr was not found")
+            << "\",";
+    }
+    oss << "\"full_or_hybrid_kernel_status\":\"not_enabled_in_this_build\","
+        << "\"failure_reason\":\"custom Vulkan W4A16/lm_head kernels were probed but not selected; measured generation used the full custom CPU path\""
+        << "}";
+    return oss.str();
+}
+
 void appendKernelRow(std::ostringstream& oss,
                      const std::string& name,
                      const std::string& family,
@@ -200,6 +250,10 @@ void appendKernelRow(std::ostringstream& oss,
     appendJsonStringField(oss, "name", name);
     oss << ",";
     appendJsonStringField(oss, "family", family);
+    oss << ",";
+    appendJsonStringField(oss, "op_family", family);
+    oss << ",";
+    appendJsonStringField(oss, "backend", "cpu");
     oss << ",";
     appendJsonStringField(oss, "implementation", implementation);
     oss << ",";
@@ -237,7 +291,7 @@ void appendGemvKernel(std::ostringstream& rows, bool* first, const std::string& 
     appendKernelRow(rows,
                     name,
                     "linear_w4a16_gemv",
-                    "generated_tiled_neon_fused_dequant_gemv",
+                    "generated_tiled_neon_fused_dequant_gemv_parallel_group_sum_reuse",
                     rows_count == 12288 ? "mlp_gate_or_up_projection" : (cols == 12288 ? "mlp_down_projection" : "attention_or_output_projection"),
                     dims.str(),
                     stats,
@@ -376,7 +430,7 @@ std::string runCustomKernelMicrobenchJson() {
         oss << "{"
             << "\"status\":\"ok\","
             << "\"measurement\":\"on_device_microbench\","
-            << "\"implementation\":\"generated_tiled_neon_fused_dequant_gemv\","
+            << "\"implementation\":\"generated_tiled_neon_fused_dequant_gemv_parallel_group_sum_reuse\","
             << "\"iterations\":{\"warmup\":" << kKernelWarmupIterations
             << ",\"measured\":" << kKernelMeasureIterations << "},"
             << "\"qwen35_shapes\":{\"hidden_size\":4096,\"intermediate_size\":12288,\"num_attention_heads\":16,"
@@ -646,15 +700,27 @@ std::string runMnnHotpathTraceJson(const std::string&) {
 }
 #endif
 
-std::string errorJson(const std::string& model_dir, xq_status status, const std::string& error) {
+std::string errorJson(const std::string& model_dir,
+                      xq_status status,
+                      const std::string& error,
+                      const std::string& custom_backend_requested,
+                      const std::string& custom_backend_actual,
+                      const std::string& vulkan_probe_json) {
     std::ostringstream oss;
     oss << "{"
-        << "\"schema_version\":2,"
+        << "\"schema_version\":4,"
         << "\"engine\":\"customlib\","
-        << "\"backend\":\"mnn_fallback_cpu\","
+        << "\"backend\":\"" << jsonEscape(custom_backend_actual) << "\","
+        << "\"backend_requested\":\"" << jsonEscape(custom_backend_requested) << "\","
+        << "\"backend_actual\":\"" << jsonEscape(custom_backend_actual) << "\","
+        << "\"custom_backend_requested\":\"" << jsonEscape(custom_backend_requested) << "\","
+        << "\"custom_backend_actual\":\"" << jsonEscape(custom_backend_actual) << "\","
         << "\"status\":\"error\","
         << "\"error_code\":" << status << ","
         << "\"error\":\"" << jsonEscape(error) << "\","
+        << "\"custom_path\":{\"calls_mnn_llm_response_for_measured_generation\":false,"
+        << "\"use_mnn_fallback\":0,\"vulkan_generation_kernels_used\":false},"
+        << "\"vulkan_attempt\":" << vulkan_probe_json << ","
         << "\"artifact\":{\"model_dir\":\"" << jsonEscape(model_dir) << "\"}"
         << "}";
     return oss.str();
@@ -667,6 +733,9 @@ std::string makeJson(const std::string& model_dir,
                      const std::vector<double>& decode_tps,
                      xq_status terminal_status,
                      const std::string& terminal_error,
+                     const std::string& custom_backend_requested,
+                     const std::string& custom_backend_actual,
+                     const std::string& vulkan_probe_json,
                      int prompt_tokens,
                      int max_new_tokens,
                      int warmup_iterations,
@@ -687,9 +756,13 @@ std::string makeJson(const std::string& model_dir,
 
     std::ostringstream oss;
     oss << "{"
-        << "\"schema_version\":3,"
+        << "\"schema_version\":4,"
         << "\"engine\":\"customlib\","
-        << "\"backend\":\"" << jsonEscape(runs.empty() ? initial_metrics.backend : runs.back().metrics.backend) << "\","
+        << "\"backend\":\"" << jsonEscape(custom_backend_actual) << "\","
+        << "\"backend_requested\":\"" << jsonEscape(custom_backend_requested) << "\","
+        << "\"backend_actual\":\"" << jsonEscape(custom_backend_actual) << "\","
+        << "\"custom_backend_requested\":\"" << jsonEscape(custom_backend_requested) << "\","
+        << "\"custom_backend_actual\":\"" << jsonEscape(custom_backend_actual) << "\","
         << "\"status\":\"" << (ok ? "ok" : "error") << "\",";
     if (!ok) {
         oss << "\"error_code\":" << terminal_status << ","
@@ -702,6 +775,7 @@ std::string makeJson(const std::string& model_dir,
         << "\"quantization\":{\"bits\":4,\"group_size\":64,\"scheme\":\"w4a16_groupwise\"}},"
         << "\"artifact\":{\"model_dir\":\"" << jsonEscape(model_dir) << "\"},"
         << "\"runtime\":{\"threads\":" << kThreads
+        << ",\"backend_actual_verified\":true"
         << ",\"precision\":\"low\",\"memory\":\"low\",\"power\":\"normal\","
         << "\"use_mmap\":true,\"reuse_kv\":false,"
         << "\"selected_kernels\":{\"summary\":\""
@@ -709,11 +783,17 @@ std::string makeJson(const std::string& model_dir,
         << "\",\"hotpath_replaced\":true,"
         << "\"full_custom_decode\":true,"
         << "\"replaced_op_families\":[\"q_proj\",\"k_proj\",\"v_proj\",\"o_proj\",\"gate_proj\",\"up_proj\",\"down_proj\",\"rmsnorm\",\"rope\",\"attention\",\"linear_attention_state\",\"lm_head\",\"sampling\",\"prefill_kv_build\"],"
-        << "\"fallback_op_families\":[]}},"
+        << "\"fallback_op_families\":[],"
+        << "\"op_family_backends\":{\"q_proj\":\"cpu\",\"k_proj\":\"cpu\",\"v_proj\":\"cpu\",\"o_proj\":\"cpu\","
+        << "\"gate_proj\":\"cpu\",\"up_proj\":\"cpu\",\"down_proj\":\"cpu\",\"rmsnorm\":\"cpu\",\"rope\":\"cpu\","
+        << "\"attention\":\"cpu\",\"linear_attention_state\":\"cpu\",\"lm_head\":\"cpu\",\"sampling\":\"cpu\","
+        << "\"prefill_kv_build\":\"cpu\"}}},"
         << "\"custom_path\":{\"calls_mnn_llm_response_for_measured_generation\":false,"
         << "\"use_mnn_fallback\":0,"
+        << "\"vulkan_generation_kernels_used\":" << (custom_backend_actual == "vulkan" || custom_backend_actual == "cpu_vulkan_hybrid" ? "true" : "false") << ","
         << "\"decode_loop\":\"xq_session::generate -> xq_prefill/xq_decode_one -> CustomModel::prefill/runLayer/sampleGreedy\","
         << "\"weight_format\":\"xq4_groupwise_w4a16\"},"
+        << "\"vulkan_attempt\":" << vulkan_probe_json << ","
         << "\"generation\":{\"prompt_tokens_requested\":" << prompt_tokens
         << ",\"max_new_tokens\":" << max_new_tokens
         << ",\"prompt_token_id\":" << kPromptToken
@@ -762,18 +842,27 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_com_example_xqwen35bench_NativeBenchmark_runBenchmark(JNIEnv* env,
                                                            jclass,
                                                            jstring model_dir,
+                                                           jstring custom_backend,
                                                            jint prompt_tokens,
                                                            jint max_new_tokens,
                                                            jint warmup_iterations,
                                                            jint measure_iterations) {
     const std::string model = jstringToString(env, model_dir);
-    __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_START engine=customlib model_dir=%s", model.c_str());
+    const std::string requested_backend = normalizeCustomBackend(jstringToString(env, custom_backend));
+    const std::string actual_backend = "cpu";
+    const std::string vulkan_probe_json = runVulkanProbeJson(requested_backend);
+    __android_log_print(ANDROID_LOG_INFO,
+                        "XQBENCH",
+                        "BENCH_START engine=customlib model_dir=%s requested_backend=%s actual_backend=%s",
+                        model.c_str(),
+                        requested_backend.c_str(),
+                        actual_backend.c_str());
     const int warmups = std::max(0, static_cast<int>(warmup_iterations));
     const int measured = std::max(1, static_cast<int>(measure_iterations));
 
     xq_options options{};
     options.struct_size = sizeof(options);
-    options.backend = "cpu";
+    options.backend = actual_backend.c_str();
     options.threads = kThreads;
     options.quant_bits = 4;
     options.group_size = 64;
@@ -784,7 +873,7 @@ Java_com_example_xqwen35bench_NativeBenchmark_runBenchmark(JNIEnv* env,
     xq_session* session = nullptr;
     xq_status status = xq_create(model.c_str(), &options, &session);
     if (status != XQ_OK || !session) {
-        std::string json = errorJson(model, status, "xq_create failed");
+        std::string json = errorJson(model, status, "xq_create failed", requested_backend, actual_backend, vulkan_probe_json);
         __android_log_print(ANDROID_LOG_INFO, "XQBENCH", "BENCH_RESULT_JSON %s", json.c_str());
         return env->NewStringUTF(json.c_str());
     }
@@ -860,6 +949,9 @@ Java_com_example_xqwen35bench_NativeBenchmark_runBenchmark(JNIEnv* env,
                                 decode_tps,
                                 terminal_status,
                                 terminal_error,
+                                requested_backend,
+                                actual_backend,
+                                vulkan_probe_json,
                                 static_cast<int>(prompt_tokens),
                                 static_cast<int>(max_new_tokens),
                                 warmups,

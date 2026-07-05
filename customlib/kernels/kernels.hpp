@@ -24,6 +24,7 @@ float dequantizeValue(const QuantizedMatrix& matrix, int row, int col);
 void dequantizeLowBitMatrix(const QuantizedMatrix& matrix, std::vector<float>* out);
 void gemvLowBitReference(const QuantizedMatrix& matrix, const float* x, float* y);
 void gemvW4A16Neon(const QuantizedMatrix& matrix, const float* x, float* y);
+int gemvW4A16ArgmaxNeon(const QuantizedMatrix& matrix, const float* x, float* out_value);
 void gemvW3A16Neon(const QuantizedMatrix& matrix, const float* x, float* y);
 void gemvW2A16Neon(const QuantizedMatrix& matrix, const float* x, float* y);
 
@@ -54,4 +55,3 @@ std::string selectKernelSummary(int quant_bits);
 }  // namespace xq
 
 #endif  // XQWEN35_KERNELS_KERNELS_HPP_
-

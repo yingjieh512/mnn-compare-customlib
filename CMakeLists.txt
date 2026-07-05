@@ -45,7 +45,7 @@ endif()
 
 if(ANDROID)
   add_library(xqbench_jni SHARED android/benchmark_app/src/main/cpp/benchmark_jni.cpp)
-  target_link_libraries(xqbench_jni PRIVATE xqwen35 log)
+  target_link_libraries(xqbench_jni PRIVATE xqwen35 log dl)
   target_include_directories(xqbench_jni PRIVATE customlib/include customlib/kernels)
   if(XQ_ENABLE_MNN)
     target_compile_definitions(xqbench_jni PRIVATE XQ_ENABLE_MNN=1)

@@ -1,8 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host/cmake_install.cmake",
-		"C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host/customlib/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

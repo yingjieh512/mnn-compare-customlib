@@ -1,0 +1,143 @@
+{
+  "artifact": {
+    "config_path": "/storage/emulated/0/Android/data/com.example.xqwen35stock/files/llm_config.json",
+    "model_dir": "/storage/emulated/0/Android/data/com.example.xqwen35stock/files"
+  },
+  "backend": "cpu",
+  "backend_actual": "cpu",
+  "backend_requested": "cpu",
+  "engine": "mnn_stock",
+  "generation": {
+    "batch_size": 1,
+    "max_new_tokens": 256,
+    "prompt_token_id": 16,
+    "prompt_tokens_requested": 512,
+    "temperature": 0,
+    "top_k": 1,
+    "top_p": 1
+  },
+  "iterations": {
+    "measured": 3,
+    "target_measured": 3,
+    "warmup": 1
+  },
+  "model": {
+    "format": "mnn_skip_weight",
+    "hf_repo": "Qwen/Qwen3.5-9B",
+    "hf_revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "quantization": {
+      "bits": 4,
+      "group_size": 64,
+      "scheme": "w4a16_groupwise"
+    }
+  },
+  "runs": [
+    {
+      "decode_tokens_per_second": 2.26862,
+      "decode_us": 112843695,
+      "generated_tokens": 256,
+      "index": 0,
+      "prefill_tokens_per_second": 39.8265,
+      "prefill_us": 12855747,
+      "prompt_tokens": 512,
+      "sample_us": 451371,
+      "status": "max_tokens_finished",
+      "ttfa_us": 0,
+      "wall_ms": 126156,
+      "warmup": true
+    },
+    {
+      "decode_tokens_per_second": 2.28454,
+      "decode_us": 112057582,
+      "generated_tokens": 256,
+      "index": 1,
+      "prefill_tokens_per_second": 45.7364,
+      "prefill_us": 11194592,
+      "prompt_tokens": 512,
+      "sample_us": 444245,
+      "status": "max_tokens_finished",
+      "ttfa_us": 0,
+      "wall_ms": 123700,
+      "warmup": false
+    },
+    {
+      "decode_tokens_per_second": 2.26408,
+      "decode_us": 113070093,
+      "generated_tokens": 256,
+      "index": 2,
+      "prefill_tokens_per_second": 45.5859,
+      "prefill_us": 11231535,
+      "prompt_tokens": 512,
+      "sample_us": 449528,
+      "status": "max_tokens_finished",
+      "ttfa_us": 0,
+      "wall_ms": 124755,
+      "warmup": false
+    },
+    {
+      "decode_tokens_per_second": 2.28376,
+      "decode_us": 112095991,
+      "generated_tokens": 256,
+      "index": 3,
+      "prefill_tokens_per_second": 45.5917,
+      "prefill_us": 11230103,
+      "prompt_tokens": 512,
+      "sample_us": 442455,
+      "status": "max_tokens_finished",
+      "ttfa_us": 0,
+      "wall_ms": 123772,
+      "warmup": false
+    }
+  ],
+  "runtime": {
+    "attention_mode": 8,
+    "backend_actual_verified": false,
+    "backend_type_configured": "cpu",
+    "cpu_sme2_neon_division_ratio": 41,
+    "cpu_sme_core_num": 2,
+    "dynamic_option": 8,
+    "memory": "low",
+    "power": "normal",
+    "precision": "low",
+    "reuse_kv": false,
+    "threads": 8,
+    "use_mmap": true
+  },
+  "schema_version": 3,
+  "status": "ok",
+  "time_per_output_token_ms": {
+    "decode": {
+      "max": 441.68,
+      "mean": 439.086,
+      "median": 437.875,
+      "min": 437.725
+    }
+  },
+  "timing": {
+    "load_us": 8233564,
+    "load_wall_ms": 8233.69,
+    "wall_ms": {
+      "max": 124755,
+      "mean": 124076,
+      "median": 123772,
+      "min": 123700,
+      "stdev": 481.135
+    }
+  },
+  "tokens_per_second": {
+    "decode": {
+      "max": 2.28454,
+      "mean": 2.27746,
+      "median": 2.28376,
+      "min": 2.26408,
+      "stdev": 0.00946461
+    },
+    "prefill": {
+      "max": 45.7364,
+      "mean": 45.638,
+      "median": 45.5917,
+      "min": 45.5859,
+      "stdev": 0.0695871
+    }
+  }
+}
