@@ -47,6 +47,11 @@ Per the acceptance rule, v18r2 is not accepted as the official final result. The
 - Quality comparison evidence: `results/reports/evidence/quality_validation_v19r2_comparison.json`
 - v18/v19 rejection note: `results/reports/optimization_attempt_v18.md`
 
+A later v20 accuracy-debug pass patched concrete graph/runtime mismatches in linear-attention gate math, Qwen3.5 partial RoPE layout, and full-attention q/gate splitting. Host tests passed, but the patched custom APK did not complete Device Farm quality validation; repeated runs stopped before emitting `BENCH_QUALITY_JSON`. This is recorded as a blocker, not a new final result:
+
+- v20 blocker note: `results/reports/quality_debug_blocker.md`
+- v20 Device Farm status evidence: `results/reports/evidence/quality_validation_v20_devicefarm_blocker_runs.json`
+
 Final evidence:
 
 - Final report: `results/reports/final_devicefarm_report.md`

@@ -66,9 +66,20 @@ void testRmsNorm() {
 void testRope() {
     std::vector<float> q = {1, 0, 0, 1};
     std::vector<float> k = {0, 1, 1, 0};
-    xq::kernels::ropeReference(q.data(), k.data(), 1, 4, 7, 10000.0f);
-    assert(std::isfinite(q[0]));
-    assert(std::isfinite(k[0]));
+    const int position = 7;
+    const float theta = 10000.0f;
+    xq::kernels::ropeReference(q.data(), k.data(), 1, 4, position, theta);
+    const float c0 = std::cos(static_cast<float>(position));
+    const float s0 = std::sin(static_cast<float>(position));
+    const float inv1 = std::pow(theta, -0.5f);
+    const float c1 = std::cos(static_cast<float>(position) * inv1);
+    const float s1 = std::sin(static_cast<float>(position) * inv1);
+    requireClose(q[0], c0, 1.0e-6f, "rope_q0");
+    requireClose(q[2], s0, 1.0e-6f, "rope_q2");
+    requireClose(q[1], -s1, 1.0e-6f, "rope_q1");
+    requireClose(q[3], c1, 1.0e-6f, "rope_q3");
+    requireClose(k[0], -s0, 1.0e-6f, "rope_k0");
+    requireClose(k[2], c0, 1.0e-6f, "rope_k2");
 }
 
 std::vector<float> stableSoftmax(const std::vector<float>& x) {
@@ -184,6 +195,94 @@ void testDelta() {
     assert(std::isfinite(out[1]));
 }
 
+float graphSoftplus(float x) {
+    if (x > 20.0f) {
+        return x;
+    }
+    return std::log1p(std::exp(x));
+}
+
+void testLinearAttentionMnnGraphInputs() {
+    const int kdim = 3;
+    const int vdim = 2;
+    float q[kdim] = {0.4f, -0.5f, 0.6f};
+    float k[kdim] = {0.2f, 0.1f, -0.3f};
+    float v[vdim] = {0.7f, -0.2f};
+
+    auto l2Normalize = [](float* values, int n) {
+        float sum = 0.0f;
+        for (int i = 0; i < n; ++i) {
+            sum += values[i] * values[i];
+        }
+        const float inv = 1.0f / std::sqrt(sum + 1.0e-6f);
+        for (int i = 0; i < n; ++i) {
+            values[i] *= inv;
+        }
+    };
+    l2Normalize(q, kdim);
+    l2Normalize(k, kdim);
+
+    const float a_proj = -0.35f;
+    const float b_proj = 0.25f;
+    const float beta = 1.0f / (1.0f + std::exp(-b_proj));
+    const float gate = -1.000001f * graphSoftplus(a_proj + 1.0e-6f);
+
+    std::vector<float> got_state(kdim * vdim, 0.0f);
+    float got[vdim] = {0.0f, 0.0f};
+    xq::kernels::gatedDeltaDecodeReference(q, k, v, beta, gate, kdim, vdim, got_state.data(), got);
+
+    const float decay = std::exp(gate);
+    std::vector<float> expected_state(kdim * vdim, 0.0f);
+    float expected[vdim] = {0.0f, 0.0f};
+    for (int kd = 0; kd < kdim; ++kd) {
+        for (int vd = 0; vd < vdim; ++vd) {
+            const size_t idx = static_cast<size_t>(kd * vdim + vd);
+            const float delta = v[vd] - expected_state[idx] * k[kd];
+            expected_state[idx] = decay * expected_state[idx] + beta * k[kd] * delta;
+            expected[vd] += q[kd] * expected_state[idx];
+        }
+    }
+    const float out_scale = 1.0f / std::sqrt(static_cast<float>(kdim));
+    for (float& value : expected) {
+        value *= out_scale;
+    }
+
+    for (int i = 0; i < kdim * vdim; ++i) {
+        requireClose(got_state[static_cast<size_t>(i)],
+                     expected_state[static_cast<size_t>(i)],
+                     1.0e-6f,
+                     "linear_attention_mnn_state");
+    }
+    for (int i = 0; i < vdim; ++i) {
+        requireClose(got[i], expected[i], 1.0e-6f, "linear_attention_mnn_out");
+    }
+}
+
+void testQwen35PerHeadQGateSplit() {
+    const int heads = 3;
+    const int head_dim = 4;
+    const int gated_head_dim = head_dim * 2;
+    std::vector<float> fused(static_cast<size_t>(heads * gated_head_dim));
+    for (int h = 0; h < heads; ++h) {
+        for (int d = 0; d < head_dim; ++d) {
+            fused[static_cast<size_t>(h * gated_head_dim + d)] = 100.0f * h + static_cast<float>(d);
+            fused[static_cast<size_t>(h * gated_head_dim + head_dim + d)] =
+                1000.0f + 100.0f * h + static_cast<float>(d);
+        }
+    }
+    std::vector<float> query(static_cast<size_t>(heads * head_dim));
+    std::vector<float> gate(static_cast<size_t>(heads * head_dim));
+    for (int h = 0; h < heads; ++h) {
+        const float* src = fused.data() + static_cast<size_t>(h * gated_head_dim);
+        std::copy(src, src + head_dim, query.data() + static_cast<size_t>(h * head_dim));
+        std::copy(src + head_dim, src + gated_head_dim, gate.data() + static_cast<size_t>(h * head_dim));
+    }
+    requireClose(query[static_cast<size_t>(head_dim)], 100.0f, 0.0f, "qgate_query_head1");
+    requireClose(gate[static_cast<size_t>(head_dim)], 1100.0f, 0.0f, "qgate_gate_head1");
+    requireClose(query[static_cast<size_t>(2 * head_dim + 3)], 203.0f, 0.0f, "qgate_query_head2");
+    requireClose(gate[static_cast<size_t>(2 * head_dim + 3)], 1203.0f, 0.0f, "qgate_gate_head2");
+}
+
 void testLmHeadArgmaxAndGreedySampling() {
     const int vocab = 4;
     const int hidden = 4;
@@ -251,6 +350,8 @@ int main() {
     testAttentionAgainstScalarReference();
     testKvCacheAppendRead();
     testDelta();
+    testLinearAttentionMnnGraphInputs();
+    testQwen35PerHeadQGateSplit();
     testLmHeadArgmaxAndGreedySampling();
     std::cout << "kernel correctness passed\n";
     return 0;

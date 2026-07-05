@@ -57,6 +57,8 @@ The post-final v19r2 quality guard is intentionally separate from the performanc
 
 The v19r2 custom quality run was rejected. It still exercised the custom full decode path with `use_mnn_fallback = 0` and `fallback_op_families = []`, but produced repeated token `220` outputs for most prompts. That evidence is recorded in `results/reports/quality_validation_report.md`; it is not used to claim production-quality model behavior.
 
+A later v20 accuracy-debug pass patched concrete graph/runtime mismatches found while investigating that failure: linear-attention gate semantics, Qwen3.5 active-slice RoPE layout, and per-head full-attention q/gate deinterleave. Host tests passed after those patches, but the patched APK did not complete Device Farm quality validation because the retry runs stopped before instrumentation emitted `BENCH_QUALITY_JSON`. That blocker is documented in `results/reports/quality_debug_blocker.md`; it is not used to replace the v17 final benchmark.
+
 ## Model Package And Loader
 
 The final package is produced by `customlib/packer/pack_qwen35_xq4.py`.

@@ -37,6 +37,20 @@ Status: rejected; not official final.
   - `results/reports/quality_validation_report.md`
   - `results/reports/evidence/quality_validation_v19r2_comparison.json`
 
+## v20 Accuracy Debug Attempt
+
+Status: blocked; not official final.
+
+- Purpose: continue from the v19/v20 repeated-token quality failure and patch concrete graph/runtime mismatches before re-running Device Farm validation.
+- Source fixes applied: linear-attention gate semantics, linear-attention L2 epsilon placement, Qwen3.5 active-slice RoPE layout, and per-head q/gate deinterleave for full-attention q projection.
+- Host result: `ctest --test-dir build-host-quality --output-on-failure` passed `2/2`.
+- Android result: `scripts/build_android.ps1` completed with Gradle `BUILD SUCCESSFUL`.
+- Device Farm result: patched custom quality runs did not produce a completed `BENCH_QUALITY_JSON`; repeated runs reached Setup/Teardown but the Tests Suite was STOPPED before instrumentation evidence was emitted.
+- v17 remains the official final benchmark and no new quality or speedup claim is made.
+- Evidence:
+  - `results/reports/quality_debug_blocker.md`
+  - `results/reports/evidence/quality_validation_v20_devicefarm_blocker_runs.json`
+
 ## v17 Optimization And Backend Sweep
 
 Status: official final backend sweep. v18r2 is kept only as a rejected experimental attempt after the quality guard.

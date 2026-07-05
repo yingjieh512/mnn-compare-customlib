@@ -57,6 +57,7 @@ function Remove-PathWithRetry([string]$Path, [string]$RelativePath) {
 $deleteRelative = @(
     "build",
     "build-host",
+    "build-host-quality",
     "build-android-check",
     "build-host-opt",
     ".gradle",

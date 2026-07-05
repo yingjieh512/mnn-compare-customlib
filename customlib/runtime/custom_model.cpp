@@ -308,7 +308,7 @@ void l2NormalizeHeads(float* x, int heads, int head_dim) {
         for (int d = 0; d < head_dim; ++d) {
             sum += base[d] * base[d];
         }
-        const float inv = 1.0f / std::sqrt(std::max(sum, 1.0e-12f));
+        const float inv = 1.0f / std::sqrt(sum + 1.0e-6f);
         for (int d = 0; d < head_dim; ++d) {
             base[d] *= inv;
         }
@@ -339,17 +339,21 @@ void applyGatedHeadRms(const float* input,
 
 void applyRopeVector(float* x, int heads, int head_dim, int rotary_dim, int position, float theta) {
     const int active_dim = std::max(0, std::min(head_dim, rotary_dim));
+    const int rope_half_dim = active_dim / 2;
     for (int h = 0; h < heads; ++h) {
         float* base = x + h * head_dim;
-        for (int i = 0; i + 1 < active_dim; i += 2) {
-            const float inv_freq = std::pow(theta, -static_cast<float>(i) / static_cast<float>(active_dim));
+        // Qwen3.5 exports phi-style partial rotary: rotate the first rotary_dim values,
+        // split within that active slice, and leave the remaining head_dim values unchanged.
+        for (int i = 0; i < rope_half_dim; ++i) {
+            const float inv_freq =
+                std::pow(theta, -static_cast<float>(2 * i) / static_cast<float>(active_dim));
             const float angle = static_cast<float>(position) * inv_freq;
             const float c = std::cos(angle);
             const float s = std::sin(angle);
             const float x0 = base[i];
-            const float x1 = base[i + 1];
+            const float x1 = base[rope_half_dim + i];
             base[i] = x0 * c - x1 * s;
-            base[i + 1] = x0 * s + x1 * c;
+            base[rope_half_dim + i] = x1 * c + x0 * s;
         }
     }
 }
@@ -592,10 +596,17 @@ void CustomModel::runFullAttention(Layer& layer, size_t position, KernelTrace* t
     runLinear("linear_v_proj_w4a16", layer.v_proj, normed_, &v_, trace);
 
     const int q_dim = num_attention_heads_ * head_dim_;
-    std::copy(q_.begin(), q_.begin() + std::min<int>(q_dim, static_cast<int>(q_.size())), q_query_.begin());
-    if (static_cast<int>(q_.size()) >= q_dim * 2) {
-        std::copy(q_.begin() + q_dim, q_.begin() + q_dim * 2, attn_gate_.begin());
+    const int gated_head_dim = head_dim_ * 2;
+    if (static_cast<int>(q_.size()) >= num_attention_heads_ * gated_head_dim) {
+        for (int h = 0; h < num_attention_heads_; ++h) {
+            const float* src = q_.data() + static_cast<size_t>(h * gated_head_dim);
+            float* q_dst = q_query_.data() + static_cast<size_t>(h * head_dim_);
+            float* gate_dst = attn_gate_.data() + static_cast<size_t>(h * head_dim_);
+            std::copy(src, src + head_dim_, q_dst);
+            std::copy(src + head_dim_, src + gated_head_dim, gate_dst);
+        }
     } else {
+        std::copy(q_.begin(), q_.begin() + std::min<int>(q_dim, static_cast<int>(q_.size())), q_query_.begin());
         std::fill(attn_gate_.begin(), attn_gate_.end(), 0.0f);
     }
 
@@ -739,9 +750,7 @@ void CustomModel::runLinearAttention(Layer& layer, KernelTrace* trace) {
         for (int vh = 0; vh < linear_num_value_heads_; ++vh) {
             const int kh = std::min(linear_num_key_heads_ - 1, vh / factor);
             const float beta = sigmoid(linear_b_[static_cast<size_t>(vh)]);
-            const float gate = -std::exp(layer.linear_a_log[static_cast<size_t>(vh)]) *
-                               softplus(linear_a_[static_cast<size_t>(vh)] +
-                                        layer.linear_dt_bias[static_cast<size_t>(vh)]);
+            const float gate = -1.000001f * softplus(linear_a_[static_cast<size_t>(vh)] + 1.0e-6f);
             float* state = layer.linear_recurrent_state.data() +
                            static_cast<size_t>(vh * linear_key_head_dim_ * linear_value_head_dim_);
             float* out = attn_hidden_.data() + static_cast<size_t>(vh * linear_value_head_dim_);

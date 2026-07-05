@@ -1,0 +1,461 @@
+{
+  "artifact_type": "devicefarm_quality_attempt_blocker",
+  "status": "blocked",
+  "reason": "Device Farm quality-validation sessions repeatedly reached Setup/Teardown but Tests Suite was STOPPED before instrumentation emitted BENCH_QUALITY_JSON. No accepted quality result was produced.",
+  "model_sha256": "9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34",
+  "device": {
+    "name": "Samsung Galaxy S26 Ultra",
+    "arn": "arn:aws:devicefarm:us-west-2::device:536B9FDAEAA14A11B504A3ECC86DA717",
+    "os": "16"
+  },
+  "runs": [
+    {
+      "name": "customlib_quality_v20r3_gatefix_cpu_vulkan_hybrid",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7084ce6e-de9f-447e-8a5b-2c7e80e3865f",
+      "status": "COMPLETED",
+      "result": "STOPPED",
+      "counters": {
+        "total": 3,
+        "passed": 2,
+        "failed": 0,
+        "warned": 0,
+        "errored": 0,
+        "stopped": 1,
+        "skipped": 0
+      },
+      "deviceMinutes": {
+        "total": 28.0,
+        "metered": 27.81,
+        "unmetered": 0.0
+      },
+      "suites": [
+        {
+          "name": "Setup Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Tests Suite",
+          "status": "COMPLETED",
+          "result": "STOPPED",
+          "counters": {
+            "total": 1,
+            "passed": 0,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 1,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Teardown Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "customlib_quality_v20r4_gate_rope_cpu_vulkan_hybrid",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/9d7518cc-3b2c-439e-98bb-049ecddb6174",
+      "status": "COMPLETED",
+      "result": "STOPPED",
+      "counters": {
+        "total": 3,
+        "passed": 2,
+        "failed": 0,
+        "warned": 0,
+        "errored": 0,
+        "stopped": 1,
+        "skipped": 0
+      },
+      "deviceMinutes": {
+        "total": 1.74,
+        "metered": 1.58,
+        "unmetered": 0.0
+      },
+      "suites": [
+        {
+          "name": "Setup Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Tests Suite",
+          "status": "COMPLETED",
+          "result": "STOPPED",
+          "counters": {
+            "total": 1,
+            "passed": 0,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 1,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Teardown Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "customlib_quality_v20r5_gate_active_rope_cpu_vulkan_hybrid",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/855fb5eb-4906-4da9-8152-147e908017fb",
+      "status": "COMPLETED",
+      "result": "STOPPED",
+      "counters": {
+        "total": 3,
+        "passed": 2,
+        "failed": 0,
+        "warned": 0,
+        "errored": 0,
+        "stopped": 1,
+        "skipped": 0
+      },
+      "deviceMinutes": {
+        "total": 3.32,
+        "metered": 3.15,
+        "unmetered": 0.0
+      },
+      "suites": [
+        {
+          "name": "Setup Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Tests Suite",
+          "status": "COMPLETED",
+          "result": "STOPPED",
+          "counters": {
+            "total": 1,
+            "passed": 0,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 1,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Teardown Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "customlib_quality_v20r6_gate_active_rope_qgate_cpu_vulkan_hybrid",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/acce7705-c7b6-4930-bb52-b661b0719264",
+      "status": "COMPLETED",
+      "result": "STOPPED",
+      "counters": {
+        "total": 3,
+        "passed": 2,
+        "failed": 0,
+        "warned": 0,
+        "errored": 0,
+        "stopped": 1,
+        "skipped": 0
+      },
+      "deviceMinutes": {
+        "total": 8.97,
+        "metered": 8.81,
+        "unmetered": 0.0
+      },
+      "suites": [
+        {
+          "name": "Setup Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Tests Suite",
+          "status": "COMPLETED",
+          "result": "STOPPED",
+          "counters": {
+            "total": 1,
+            "passed": 0,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 1,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Teardown Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "customlib_quality_v20r6b_gate_active_rope_qgate_cpu_vulkan_hybrid",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/d09ab26b-4f54-4e66-b716-42f1fee60a1f",
+      "status": "COMPLETED",
+      "result": "STOPPED",
+      "counters": {
+        "total": 3,
+        "passed": 2,
+        "failed": 0,
+        "warned": 0,
+        "errored": 0,
+        "stopped": 1,
+        "skipped": 0
+      },
+      "deviceMinutes": {
+        "total": 19.05,
+        "metered": 18.85,
+        "unmetered": 0.0
+      },
+      "suites": [
+        {
+          "name": "Setup Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Tests Suite",
+          "status": "COMPLETED",
+          "result": "STOPPED",
+          "counters": {
+            "total": 1,
+            "passed": 0,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 1,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Teardown Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "customlib_quality_v20r7_gate_active_rope_qgate_cpu_vulkan_hybrid",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/8ef6edff-c7bf-461c-b599-42d0745137c8",
+      "status": "COMPLETED",
+      "result": "STOPPED",
+      "counters": {
+        "total": 3,
+        "passed": 2,
+        "failed": 0,
+        "warned": 0,
+        "errored": 0,
+        "stopped": 1,
+        "skipped": 0
+      },
+      "deviceMinutes": {
+        "total": 22.28,
+        "metered": 22.12,
+        "unmetered": 0.0
+      },
+      "suites": [
+        {
+          "name": "Setup Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Tests Suite",
+          "status": "COMPLETED",
+          "result": "STOPPED",
+          "counters": {
+            "total": 1,
+            "passed": 0,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 1,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Teardown Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "customlib_quality_v20r8_gate_active_rope_qgate_cpu_vulkan_hybrid",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/f9f9cfe7-a43b-4c40-abe9-0b18ffa2ee92",
+      "status": "COMPLETED",
+      "result": "STOPPED",
+      "counters": {
+        "total": 3,
+        "passed": 2,
+        "failed": 0,
+        "warned": 0,
+        "errored": 0,
+        "stopped": 1,
+        "skipped": 0
+      },
+      "deviceMinutes": {
+        "total": 27.36,
+        "metered": 27.18,
+        "unmetered": 0.0
+      },
+      "suites": [
+        {
+          "name": "Setup Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Tests Suite",
+          "status": "COMPLETED",
+          "result": "STOPPED",
+          "counters": {
+            "total": 1,
+            "passed": 0,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 1,
+            "skipped": 0
+          }
+        },
+        {
+          "name": "Teardown Suite",
+          "status": "COMPLETED",
+          "result": "PASSED",
+          "counters": {
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "warned": 0,
+            "errored": 0,
+            "stopped": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    }
+  ]
+}
