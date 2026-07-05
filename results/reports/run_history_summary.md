@@ -2,9 +2,31 @@
 
 This file summarizes the major run families so the large `results/raw/**` expanded artifacts can be deleted locally without losing the audit trail. Final, machine-readable evidence is kept in `results/reports/evidence/`.
 
-## Current Final: v17 Optimization And Backend Sweep
+## Current Final: v18r2 Optimization Final
 
-Status: final delivery baseline after the CPU optimization and Vulkan-attempt pass.
+Status: official final delivery after the bounded v18 optimization pass.
+
+- Stock MNN CPU baseline run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7e44236c-db1a-4900-9fd8-7d8d7d654e28`
+- Optimized customlib CPU/Vulkan-hybrid-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1b18e97c-38fe-4581-97c8-b7688b5fbc91`
+- Device: Samsung Galaxy S26 Ultra, SM-S948U1, Android 16.
+- Model: Qwen/Qwen3.5-9B revision `c202236235762e1c871ad0ccb60c8ee5ba337b9a`.
+- Model package SHA-256: `9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34`.
+- Settings: 512 prompt tokens, 256 max_new_tokens, greedy sampling, 1 warmup + 3 measured.
+- Stock CPU: prefill 45.6380 TPS, decode 2.27746 TPS, TPOT 439.086 ms.
+- Custom v18r2: requested `cpu_vulkan_hybrid`, actual backend CPU; prefill 2.44242 TPS, decode 2.14021 TPS, TPOT 467.244 ms.
+- v18r2 improved the accepted v17 custom baseline from 1.93417 TPS to 2.14021 TPS, a +10.65% decode TPS improvement.
+- Best custom / stock CPU decode ratio: 0.9397x.
+- Verdict: requirement 1 YES, requirement 2 YES, Vulkan attempted YES, custom Vulkan kernels used NO, speedup NO.
+- Evidence:
+  - `results/reports/final_devicefarm_report.md`
+  - `results/reports/final_devicefarm_report.json`
+  - `results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v18r2.json`
+  - `results/reports/evidence/v18_scheduled_runs.json`
+  - `results/reports/evidence/v18_optimization_final_summary.json`
+
+## v17 Optimization And Backend Sweep
+
+Status: accepted baseline, superseded by v18r2 but kept for audit.
 
 - Stock MNN CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7e44236c-db1a-4900-9fd8-7d8d7d654e28`
 - Stock MNN Vulkan-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/067c195b-1e14-4bca-998d-c7d38a65c5c7`

@@ -67,9 +67,11 @@ $deleteRelative = @(
     "android/benchmark_app/.cxx",
     "results/raw",
     "results/reports/qwen35_9b_full_custom_v16_presentation",
+    "results/reports/qwen35_9b_v18r2_optimization_presentation_preview",
     "results/reports/qwen35_9b_devicefarm_v14_hotpath_presentation",
     "results/reports/qwen35_9b_kernel_library_walkthrough_devicefarm_v13",
     "results/reports/qwen35_9b_full_custom_v16_presentation.pptx.inspect.ndjson",
+    "results/reports/qwen35_9b_v18r2_optimization_presentation.pptx.inspect.ndjson",
     "results/reports/qwen35_9b_devicefarm_v14_hotpath_presentation.pptx.inspect.ndjson",
     "results/reports/qwen35_9b_kernel_library_walkthrough_devicefarm_v13.pptx.inspect.ndjson"
 )
@@ -87,6 +89,7 @@ if ($RemoveModelAssets) {
         "out/qwen35_xq_fullcustom_v15",
         "out/qwen35_xq_fullcustom_v15_parts",
         "out/qwen35_xq_fullcustom_v17_parts",
+        "out/qwen35_xq_fullcustom_v18_parts",
         "out/qwen35_xq_hotpath",
         "out/qwen35_xq_hotpath_parts_v14",
         "out/qwen35_xq_hotpath_test",

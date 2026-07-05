@@ -1,0 +1,88 @@
+[
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/3fb82808-86c1-451b-b5f5-e220befae5bf",
+    "name": "qwen35_xq_fullcustom_v18_part00.zippart",
+    "created": 1783237326.465,
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "url": "REDACTED_URL",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE",
+    "path": "out/qwen35_xq_fullcustom_v18_parts/qwen35_xq_fullcustom_v18_part00.zippart",
+    "bytes": 4500000000
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/541ca86b-d8eb-45d8-a608-4e2bbc41f452",
+    "name": "qwen35_xq_fullcustom_v18_part01.zippart",
+    "created": 1783238985.687,
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "url": "REDACTED_URL",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE",
+    "path": "out/qwen35_xq_fullcustom_v18_parts/qwen35_xq_fullcustom_v18_part01.zippart",
+    "bytes": 4500000000
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/bb7fe040-c0af-4d76-808c-5289fe38b327",
+    "name": "qwen35_xq_fullcustom_v18_part02.zippart",
+    "created": 1783240639.388,
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "url": "REDACTED_URL",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE",
+    "path": "out/qwen35_xq_fullcustom_v18_parts/qwen35_xq_fullcustom_v18_part02.zippart",
+    "bytes": 2266405198
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/87103b16-6e29-4368-9e7f-3be8dd98d725",
+    "name": "customlib_benchmark_v18_opt_debug.apk",
+    "created": 1783241472.727,
+    "type": "ANDROID_APP",
+    "status": "SUCCEEDED",
+    "url": "REDACTED_URL",
+    "metadata": "{\"device_admin\":false,\"activity_name\":\"com.example.xqwen35bench.MainActivity\",\"version_name\":\"0.1.0\",\"screens\":[\"small\",\"normal\",\"large\",\"xlarge\"],\"error_type\":null,\"package_name\":\"com.example.xqwen35bench\",\"version_code\":\"1\",\"sdk_version\":\"29\",\"native_code\":[\"arm64-v8a\"],\"target_sdk_version\":\"35\"}",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE",
+    "path": "android/benchmark_app/build/outputs/apk/debug/customlib_benchmark-debug.apk",
+    "bytes": 9124110
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/b75920d3-35d1-482a-9be5-f89145e26d6b",
+    "name": "customlib_benchmark_v18_opt_androidTest.apk",
+    "created": 1783241483.921,
+    "type": "INSTRUMENTATION_TEST_PACKAGE",
+    "status": "SUCCEEDED",
+    "url": "REDACTED_URL",
+    "metadata": "{\"test_package_name\":null,\"instrumentation_runner\":\"androidx.test.runner.AndroidJUnitRunner\",\"error_type\":null,\"package_name\":\"com.example.xqwen35bench.test\"}",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE",
+    "path": "android/benchmark_app/build/outputs/apk/androidTest/debug/customlib_benchmark-debug-androidTest.apk",
+    "bytes": 4480121
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/8f8a012f-2546-451a-b525-9749c068bcc8",
+    "name": "customlib_v18_cpu_vulkan_hybrid_test_spec.yml",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "url": "REDACTED_URL",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE",
+    "path": "out/devicefarm_private/v18/customlib_v18_cpu_vulkan_hybrid.yml",
+    "bytes": 4693,
+    "note": "first v18 spec used create-upload PUT URLs and led to device-side HTTP 403; retained only as redacted failure evidence"
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/85da65ab-c35e-4afa-a755-6ca7e4eb344c",
+    "name": "customlib_v18r2_cpu_vulkan_hybrid_test_spec.yml",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "url": "REDACTED_URL",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE",
+    "path": "out/devicefarm_private/v18/customlib_v18r2_cpu_vulkan_hybrid.yml",
+    "bytes": 6534,
+    "note": "accepted v18r2 spec uses Device Farm get-upload downloadable URLs"
+  }
+]

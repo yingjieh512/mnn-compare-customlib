@@ -1,6 +1,6 @@
 {
-  "generated_utc": "2026-07-05T06:50:15Z",
-  "version": "v17_backend_sweep",
+  "generated_utc": "2026-07-05T09:50:41Z",
+  "version": "v18r2_optimization_final",
   "verdict": {
     "faithful_benchmark": true,
     "requirement_1_met": true,
@@ -8,7 +8,8 @@
     "vulkan_attempted": true,
     "custom_vulkan_used_in_measured_generation": false,
     "custom_speedup_claim_allowed": false,
-    "speedup_verdict": "No speedup claimed. Best custom decode is 1.93417 TPS versus stock CPU 2.27746 TPS, a 0.8493x custom/stock ratio."
+    "speedup_verdict": "No custom speedup claimed. Optimized custom decode is 2.14021 TPS versus stock CPU 2.27746 TPS, a 0.9397x custom/stock ratio.",
+    "v18r2_acceptance": "Accepted because v18r2 improved v17 best custom decode from 1.93417 TPS to 2.14021 TPS (+10.65%) and TPOT from 517.018 ms to 467.244 ms (-49.774 ms)."
   },
   "model": {
     "hf_repo": "Qwen/Qwen3.5-9B",
@@ -99,34 +100,45 @@
       "decode_tps_mean": 1.93417,
       "decode_tpot_ms_mean": 517.018,
       "device_minutes_total": 41.8,
-      "evidence_json": "results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v17.json",
-      "vulkan_attempt": {
-        "status": "ok",
-        "libvulkan_loaded": true,
-        "vkGetInstanceProcAddr_found": true,
-        "full_or_hybrid_kernel_status": "not_enabled_in_this_build",
-        "custom_generation_kernels_used": false
-      }
+      "evidence_json": "results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v17.json"
+    },
+    {
+      "name": "customlib_cpu_vulkan_hybrid_v18r2_optimization_attempt",
+      "engine": "customlib",
+      "backend_requested": "cpu_vulkan_hybrid",
+      "backend_actual": "cpu",
+      "run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1b18e97c-38fe-4581-97c8-b7688b5fbc91",
+      "result": "PASSED",
+      "json_status": "ok",
+      "prefill_tps_mean": 2.44242,
+      "decode_tps_mean": 2.14021,
+      "decode_tpot_ms_mean": 467.244,
+      "device_minutes_total": 39.69,
+      "evidence_json": "results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v18r2.json"
     }
   ],
   "comparisons": {
-    "custom_cpu_vs_stock_cpu_decode_ratio": 0.8148331913623071,
-    "best_custom_vs_best_stock_decode_ratio": 0.8492662878821142,
+    "custom_v18r2_vs_stock_cpu_decode_ratio": 0.9397354948056168,
+    "custom_v18r2_vs_stock_cpu_decode_delta_percent": -6.02645051943832,
+    "custom_v18r2_vs_v17_best_custom_decode_ratio": 1.1065263136125574,
+    "custom_v18r2_vs_v17_best_custom_decode_delta_percent": 10.652631361255738,
+    "custom_v18r2_vs_v17_best_custom_tpot_delta_ms": -49.774,
     "best_stock_backend": "stock_mnn_cpu",
-    "best_custom_variant": "customlib_cpu_vulkan_hybrid_requested_actual_cpu",
+    "best_custom_variant": "customlib_cpu_vulkan_hybrid_v18r2_optimization_attempt",
     "best_custom_actual_backend": "cpu"
   },
   "custom_evidence": {
     "custom_path": {
-      "use_mnn_fallback": 0,
       "calls_mnn_llm_response_for_measured_generation": false,
+      "use_mnn_fallback": 0,
       "vulkan_generation_kernels_used": false,
-      "decode_loop": "xq_session::generate -> xq_prefill/xq_decode_one -> CustomModel::prefill/runLayer/sampleGreedy"
+      "decode_loop": "xq_session::generate -> xq_prefill/xq_decode_one -> CustomModel::prefill/runLayer/sampleGreedy",
+      "weight_format": "xq4_groupwise_w4a16"
     },
     "selected_kernels": {
+      "summary": "custom_decode_loop;hotpath_replaced=true;full_custom_decode=true;linear=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,linear_attn_qkv_a_b_z_out,lm_head;rmsnorm=custom;rope=custom;attention=custom_gqa_decode;linear_attention_state=custom_gated_delta;sampling=custom_greedy;prefill_kv_build=custom;fallback_ops=none",
       "hotpath_replaced": true,
       "full_custom_decode": true,
-      "fallback_op_families": [],
       "replaced_op_families": [
         "q_proj",
         "k_proj",
@@ -143,6 +155,7 @@
         "sampling",
         "prefill_kv_build"
       ],
+      "fallback_op_families": [],
       "op_family_backends": {
         "q_proj": "cpu",
         "k_proj": "cpu",
@@ -159,14 +172,23 @@
         "sampling": "cpu",
         "prefill_kv_build": "cpu"
       }
+    },
+    "vulkan_attempt": {
+      "status": "ok",
+      "requested_backend": "cpu_vulkan_hybrid",
+      "libvulkan_loaded": true,
+      "vkGetInstanceProcAddr_found": true,
+      "full_or_hybrid_kernel_status": "not_enabled_in_this_build",
+      "failure_reason": "custom Vulkan W4A16/lm_head kernels were probed but not selected; measured generation used the full custom CPU path"
     }
   },
   "artifacts": {
     "final_report_md": "results/reports/final_devicefarm_report.md",
     "code_walkthrough_md": "docs/kernel_library_code_walkthrough_final.md",
-    "backend_sweep_summary_json": "results/reports/evidence/v17_backend_sweep_summary.json",
+    "final_summary_json": "results/reports/final_devicefarm_report.json",
+    "custom_v18r2_evidence_json": "results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v18r2.json",
     "run_history_summary_md": "results/reports/run_history_summary.md",
-    "presentation_pptx": "results/reports/qwen35_9b_v17_backend_sweep_presentation.pptx",
-    "presentation_contact_sheet_png": "results/reports/qwen35_9b_v17_backend_sweep_presentation_contact_sheet.png"
+    "presentation_pptx": "results/reports/qwen35_9b_v18r2_optimization_presentation.pptx",
+    "presentation_contact_sheet_png": "results/reports/qwen35_9b_v18r2_optimization_presentation_contact_sheet.png"
   }
 }

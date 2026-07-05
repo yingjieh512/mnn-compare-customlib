@@ -422,6 +422,13 @@ bool CustomModel::load(const std::string& model_dir, std::string* error) {
         *error = "missing embeddings_bf16.bin";
         return false;
     }
+    embedding_stream_.close();
+    embedding_stream_.clear();
+    embedding_stream_.open(model_dir + "/embeddings_bf16.bin", std::ios::binary);
+    if (!embedding_stream_) {
+        *error = "failed to open embeddings_bf16.bin";
+        return false;
+    }
     if (!readVectorF32(model_dir + "/norm_weight.f32", hidden_size_, &final_norm_, error)) {
         return false;
     }
@@ -444,6 +451,7 @@ bool CustomModel::load(const std::string& model_dir, std::string* error) {
     v_.assign(static_cast<size_t>(std::max(num_key_value_heads_ * head_dim_, 1)), 0.0f);
     attn_hidden_.assign(static_cast<size_t>(hidden_size_), 0.0f);
     attn_scores_.clear();
+    max_scores_.assign(static_cast<size_t>(num_attention_heads_), -1.0e30f);
     linear_mixed_.assign(static_cast<size_t>(linear_conv_dim_), 0.0f);
     linear_a_.assign(static_cast<size_t>(linear_num_value_heads_), 0.0f);
     linear_b_.assign(static_cast<size_t>(linear_num_value_heads_), 0.0f);
@@ -453,6 +461,7 @@ bool CustomModel::load(const std::string& model_dir, std::string* error) {
     up_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
     ffn_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
     logits_.clear();
+    embedding_row_bf16_.assign(static_cast<size_t>(hidden_size_), 0);
     resetState();
     return true;
 }
@@ -507,28 +516,37 @@ void CustomModel::resetState() {
 bool CustomModel::loadEmbeddingRow(int32_t token_id,
                                    std::vector<float>* out,
                                    KernelTrace* trace,
-                                   std::string* error) const {
+                                   std::string* error) {
     if (token_id < 0 || token_id >= vocab_size_) {
         token_id = std::abs(token_id) % std::max(1, vocab_size_);
     }
     const auto t0 = Clock::now();
-    std::ifstream in(model_dir_ + "/embeddings_bf16.bin", std::ios::binary);
-    if (!in) {
+    if (!embedding_stream_.is_open()) {
+        embedding_stream_.clear();
+        embedding_stream_.open(model_dir_ + "/embeddings_bf16.bin", std::ios::binary);
+    }
+    if (!embedding_stream_) {
         *error = "failed to open embeddings_bf16.bin";
         return false;
     }
     const std::streamoff offset =
         static_cast<std::streamoff>(token_id) * static_cast<std::streamoff>(hidden_size_) * 2;
-    in.seekg(offset, std::ios::beg);
-    std::vector<uint16_t> row(static_cast<size_t>(hidden_size_));
-    in.read(reinterpret_cast<char*>(row.data()), static_cast<std::streamsize>(row.size() * sizeof(uint16_t)));
-    if (!in) {
+    embedding_stream_.clear();
+    embedding_stream_.seekg(offset, std::ios::beg);
+    if (embedding_row_bf16_.size() != static_cast<size_t>(hidden_size_)) {
+        embedding_row_bf16_.resize(static_cast<size_t>(hidden_size_));
+    }
+    embedding_stream_.read(reinterpret_cast<char*>(embedding_row_bf16_.data()),
+                           static_cast<std::streamsize>(embedding_row_bf16_.size() * sizeof(uint16_t)));
+    if (!embedding_stream_) {
         *error = "short embeddings_bf16.bin row read";
         return false;
     }
-    out->assign(static_cast<size_t>(hidden_size_), 0.0f);
+    if (out->size() != static_cast<size_t>(hidden_size_)) {
+        out->resize(static_cast<size_t>(hidden_size_));
+    }
     for (int i = 0; i < hidden_size_; ++i) {
-        (*out)[static_cast<size_t>(i)] = bf16ToFloat(row[static_cast<size_t>(i)]);
+        (*out)[static_cast<size_t>(i)] = bf16ToFloat(embedding_row_bf16_[static_cast<size_t>(i)]);
     }
     if (trace) {
         trace->add("embedding_bf16_row_read", elapsedMs(t0, Clock::now()));
@@ -542,6 +560,14 @@ bool CustomModel::prefill(const int32_t* token_ids, size_t n_tokens, KernelTrace
         return false;
     }
     resetState();
+    const size_t reserve_tokens = n_tokens + 512;
+    const size_t kv_values = static_cast<size_t>(num_key_value_heads_ * head_dim_);
+    for (Layer& layer : layers_) {
+        if (layer.full_attention) {
+            layer.k_cache.reserve(reserve_tokens * kv_values);
+            layer.v_cache.reserve(reserve_tokens * kv_values);
+        }
+    }
     for (size_t i = 0; i < n_tokens; ++i) {
         const auto t0 = Clock::now();
         if (!loadEmbeddingRow(token_ids[i], &hidden_, trace, error)) {
@@ -563,7 +589,9 @@ void CustomModel::runLinear(const std::string& name,
                             const std::vector<float>& input,
                             std::vector<float>* output,
                             KernelTrace* trace) const {
-    output->assign(static_cast<size_t>(matrix.rows), 0.0f);
+    if (output->size() != static_cast<size_t>(matrix.rows)) {
+        output->resize(static_cast<size_t>(matrix.rows));
+    }
     const auto t0 = Clock::now();
     kernels::gemvW4A16Neon(matrix, input.data(), output->data());
     if (trace) {
@@ -577,8 +605,19 @@ void CustomModel::appendKv(Layer& layer,
                            KernelTrace* trace) {
     const auto t0 = Clock::now();
     const size_t kv_values = static_cast<size_t>(num_key_value_heads_ * head_dim_);
-    layer.k_cache.insert(layer.k_cache.end(), k.begin(), k.begin() + std::min(k.size(), kv_values));
-    layer.v_cache.insert(layer.v_cache.end(), v.begin(), v.begin() + std::min(v.size(), kv_values));
+    const size_t old_size = layer.k_cache.size();
+    const size_t copy_k = std::min(k.size(), kv_values);
+    const size_t copy_v = std::min(v.size(), kv_values);
+    layer.k_cache.resize(old_size + kv_values);
+    layer.v_cache.resize(old_size + kv_values);
+    std::copy_n(k.data(), copy_k, layer.k_cache.data() + old_size);
+    if (copy_k < kv_values) {
+        std::fill(layer.k_cache.data() + old_size + copy_k, layer.k_cache.data() + old_size + kv_values, 0.0f);
+    }
+    std::copy_n(v.data(), copy_v, layer.v_cache.data() + old_size);
+    if (copy_v < kv_values) {
+        std::fill(layer.v_cache.data() + old_size + copy_v, layer.v_cache.data() + old_size + kv_values, 0.0f);
+    }
     layer.kv_len += 1;
     if (trace) {
         trace->add("kv_append_custom", elapsedMs(t0, Clock::now()));
@@ -613,8 +652,14 @@ void CustomModel::runFullAttention(Layer& layer, size_t position, KernelTrace* t
 
     appendKv(layer, k_, v_, trace);
     const int context = static_cast<int>(layer.kv_len);
-    attn_scores_.assign(static_cast<size_t>(std::max(1, context * num_attention_heads_)), 0.0f);
-    std::vector<float> max_scores(static_cast<size_t>(num_attention_heads_), -1.0e30f);
+    const size_t score_count = static_cast<size_t>(std::max(1, context * num_attention_heads_));
+    if (attn_scores_.size() < score_count) {
+        attn_scores_.resize(score_count);
+    }
+    if (max_scores_.size() != static_cast<size_t>(num_attention_heads_)) {
+        max_scores_.resize(static_cast<size_t>(num_attention_heads_));
+    }
+    std::fill(max_scores_.begin(), max_scores_.end(), -1.0e30f);
     const int group = std::max(1, num_attention_heads_ / std::max(1, num_key_value_heads_));
     {
         const auto t0 = Clock::now();
@@ -630,7 +675,7 @@ void CustomModel::runFullAttention(Layer& layer, size_t position, KernelTrace* t
                 }
                 const float score = dot / std::sqrt(static_cast<float>(head_dim_));
                 attn_scores_[static_cast<size_t>(qh * context + t)] = score;
-                max_scores[static_cast<size_t>(qh)] = std::max(max_scores[static_cast<size_t>(qh)], score);
+                max_scores_[static_cast<size_t>(qh)] = std::max(max_scores_[static_cast<size_t>(qh)], score);
             }
         }
         if (trace) {
@@ -643,7 +688,7 @@ void CustomModel::runFullAttention(Layer& layer, size_t position, KernelTrace* t
             float denom = 0.0f;
             for (int t = 0; t < context; ++t) {
                 float& score = attn_scores_[static_cast<size_t>(qh * context + t)];
-                score = std::exp(score - max_scores[static_cast<size_t>(qh)]);
+                score = std::exp(score - max_scores_[static_cast<size_t>(qh)]);
                 denom += score;
             }
             const float inv = denom > 0.0f ? 1.0f / denom : 0.0f;
@@ -801,7 +846,9 @@ void CustomModel::runLayer(Layer& layer, size_t position, KernelTrace* trace) {
     runLinear("linear_up_proj_w4a16", layer.up_proj, normed_, &up_, trace);
     {
         const auto t0 = Clock::now();
-        ffn_.assign(static_cast<size_t>(intermediate_size_), 0.0f);
+        if (ffn_.size() != static_cast<size_t>(intermediate_size_)) {
+            ffn_.resize(static_cast<size_t>(intermediate_size_));
+        }
         for (int i = 0; i < intermediate_size_; ++i) {
             ffn_[static_cast<size_t>(i)] = silu(gate_[static_cast<size_t>(i)]) * up_[static_cast<size_t>(i)];
         }

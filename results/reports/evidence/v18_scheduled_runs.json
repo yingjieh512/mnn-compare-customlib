@@ -1,0 +1,36 @@
+{
+  "project_arn": "arn:aws:devicefarm:us-west-2:884244642857:project:64d2cc31-abd6-49f8-97da-162f82410bc0",
+  "device_pool_arn": "arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213",
+  "runs": [
+    {
+      "name": "customlib_cpu_vulkan_hybrid_v18_optimization_attempt",
+      "engine": "customlib",
+      "backend": "cpu_vulkan_hybrid",
+      "status": "COMPLETED",
+      "result": "FAILED",
+      "run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/f691220e-185e-4a4e-907f-dae49765db9a",
+      "app_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/87103b16-6e29-4368-9e7f-3be8dd98d725",
+      "test_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/b75920d3-35d1-482a-9be5-f89145e26d6b",
+      "test_spec_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/8f8a012f-2546-451a-b525-9749c068bcc8",
+      "accepted_for_performance": false,
+      "reason": "Device-side model download failed with HTTP 403 because the test spec used create-upload PUT URLs instead of get-upload downloadable URLs."
+    },
+    {
+      "name": "customlib_cpu_vulkan_hybrid_v18r2_optimization_attempt",
+      "engine": "customlib",
+      "backend": "cpu_vulkan_hybrid",
+      "status": "COMPLETED",
+      "result": "PASSED",
+      "run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1b18e97c-38fe-4581-97c8-b7688b5fbc91",
+      "app_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/87103b16-6e29-4368-9e7f-3be8dd98d725",
+      "test_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/b75920d3-35d1-482a-9be5-f89145e26d6b",
+      "test_spec_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/85da65ab-c35e-4afa-a755-6ca7e4eb344c",
+      "accepted_for_performance": true,
+      "decode_tps_mean": 2.14021,
+      "decode_tpot_ms_mean": 467.244,
+      "prefill_tps_mean": 2.44242,
+      "device_minutes_total": 39.69,
+      "evidence_json": "results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v18r2.json"
+    }
+  ]
+}
