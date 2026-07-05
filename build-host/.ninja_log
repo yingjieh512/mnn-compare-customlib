@@ -1,0 +1,49 @@
+# ninja log v7
+12	245	8048992157803083	customlib/CMakeFiles/xqwen35.dir/runtime/sampler.cpp.obj	b8a0725afa70efc6
+15	254	8048992157803083	customlib/CMakeFiles/xqwen35.dir/runtime/cache_manager.cpp.obj	7e38f0bfe33c77d2
+8	465	8048992157803083	customlib/CMakeFiles/xqwen35.dir/runtime/tokenizer_bridge.cpp.obj	c81c93285b66bd06
+18	557	8048992157962021	customlib/CMakeFiles/xqwen35.dir/runtime/telemetry.cpp.obj	95779b5c35b04af2
+36	612	8048992158140209	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/graph_rewrite.cpp.obj	261f77a7d3a8304d
+31	698	8048992158060767	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/mnn_loader.cpp.obj	ccf694a1209854e3
+247	705	8048992160259323	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/custom_op_registry.cpp.obj	f65bdfb1b57d61
+254	712	8048992160292642	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/xqwen_linear_execution.cpp.obj	c41cde0447b96d61
+465	893	8048992162437577	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/xqwen_rmsnorm_execution.cpp.obj	b87c0d631ecf7306
+558	1063	8048992163761483	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/xqwen_rope_execution.cpp.obj	5affb2f12b1a5a92
+613	1070	8048992163907283	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/xqwen_attention_execution.cpp.obj	c29a90eea393739f
+706	1146	8048992164831626	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/xqwen_ffn_execution.cpp.obj	fb2b3e1951e8ee10
+699	1154	8048992164776105	customlib/CMakeFiles/xqwen35.dir/mnn_bridge/xqwen_delta_execution.cpp.obj	7d13b90404fbbc38
+893	1519	8048992166709793	customlib/CMakeFiles/xqwen35.dir/kernels/reference/ref_rmsnorm.cpp.obj	4d27082c9fde75a6
+712	1608	8048992164909326	customlib/CMakeFiles/xqwen35.dir/kernels/reference/ref_gemv.cpp.obj	c3c7205eab01f84a
+1063	1683	8048992168416131	customlib/CMakeFiles/xqwen35.dir/kernels/reference/ref_rope.cpp.obj	78f777aa24b71ccf
+1070	1843	8048992168492272	customlib/CMakeFiles/xqwen35.dir/kernels/reference/ref_attention.cpp.obj	2f082f19cb017bf1
+1146	1850	8048992169247501	customlib/CMakeFiles/xqwen35.dir/kernels/reference/ref_delta.cpp.obj	2ace6732de87f0f3
+1154	1888	8048992169328812	customlib/CMakeFiles/xqwen35.dir/kernels/generated/generated_dispatch.cpp.obj	99d6675697cfb937
+4	1931	8048992157803083	customlib/CMakeFiles/xqwen35.dir/runtime/session.cpp.obj	2e006ecdda5fe8e9
+1608	2083	8048992173855504	customlib/CMakeFiles/xqwen35.dir/kernels/generated/arm64_neon/xq_gemv_w3a16_neon.cpp.obj	69946069ecdc6c47
+1520	2100	8048992172943626	customlib/CMakeFiles/xqwen35.dir/kernels/generated/arm64_neon/xq_gemv_w4a16_neon.cpp.obj	a35edd2a03fe22b3
+1683	2117	8048992174608313	customlib/CMakeFiles/xqwen35.dir/kernels/generated/arm64_neon/xq_gemv_w2a16_neon.cpp.obj	14a742e9a47beadb
+23	487	8048992696183606	CMakeFiles/xq_kernel_correctness.dir/customlib/tests/kernel_correctness/test_kernels.cpp.obj	71408c7dad1d735a
+1850	2827	8048992176270912	CMakeFiles/xq_runtime_correctness.dir/customlib/tests/runtime_correctness/test_runtime.cpp.obj	b062b08a0f4f995d
+27	3113	8048992158040719	customlib/CMakeFiles/xqwen35.dir/runtime/custom_model.cpp.obj	7d70b52dff2f95e
+3113	3247	8048992190146503	customlib/libxqwen35.dll	35114f8b446b8272
+3113	3247	8048992190146503	customlib/libxqwen35.dll.a	35114f8b446b8272
+3	162	8048993188252124	build.ninja	f87ddd0608a26e2c
+3	162	8048993188252124	C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host/cmake_install.cmake	f87ddd0608a26e2c
+3	162	8048993188252124	C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host/customlib/cmake_install.cmake	f87ddd0608a26e2c
+3	162	8048993188252124	C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host/CTestTestfile.cmake	f87ddd0608a26e2c
+139	506	8048992399348991	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/generated/arm64_neon/xq_gemv_w3a16_neon.cpp.obj	80a6cfd95538c289
+24	566	8048992398211841	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/reference/ref_rmsnorm.cpp.obj	cdfa942c9c08ac63
+134	573	8048992399231605	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/generated/arm64_neon/xq_gemv_w4a16_neon.cpp.obj	da1112bb9d0dfe81
+28	580	8048992398240965	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/reference/ref_rope.cpp.obj	3a2906435b9c9b48
+125	585	8048992399231605	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/reference/ref_delta.cpp.obj	6c8819deaede2d3
+32	650	8048992398240965	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/reference/ref_attention.cpp.obj	e8652c2329438256
+129	653	8048992399231605	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/generated/generated_dispatch.cpp.obj	28986087a6d4eec7
+20	678	8048992398191852	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/reference/ref_gemv.cpp.obj	c04269619f913268
+507	837	8048992403061930	CMakeFiles/xq_kernel_correctness.dir/customlib/kernels/generated/arm64_neon/xq_gemv_w2a16_neon.cpp.obj	2b448374deb0e15c
+487	608	8048992700821078	xq_kernel_correctness.exe	b2ffc0df1035b1d
+566	1043	8048992403640903	CMakeFiles/xq_runtime_correctness.dir/customlib/kernels/reference/ref_gemv.cpp.obj	ae57f4f2ed686a65
+19	187	8048992838453728	xq_runtime_correctness.exe	ea93d9813695e12a
+4	183	8048993188252124	build.ninja	f87ddd0608a26e2c
+4	183	8048993188252124	C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host/cmake_install.cmake	f87ddd0608a26e2c
+4	183	8048993188252124	C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host/customlib/cmake_install.cmake	f87ddd0608a26e2c
+4	183	8048993188252124	C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host/CTestTestfile.cmake	f87ddd0608a26e2c
