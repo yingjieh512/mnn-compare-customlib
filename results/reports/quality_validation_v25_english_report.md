@@ -8,10 +8,10 @@ TPS/TPOT measure speed, not semantic quality. This validation compares determini
 - Exact token match for all prompts: NO
 - Exact-match prompts: 1 / 5
 - Comparison-gate prompts: 5 / 5
-- Stock validation run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/9908fb50-103c-4698-81c9-f2f12b98b335`
-- Custom validation run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/4ac8ce83-abf1-42fe-8cd2-3ffde19821f2`
-- Stock evidence JSON: `results/reports/evidence/quality_validation_v27_stock_english.json`
-- Custom evidence JSON: `results/reports/evidence/quality_validation_v27_custom_english.json`
+- Stock validation run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/d8534707-d61d-4e60-8f78-bb4d35c5a936`
+- Custom validation run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/493d6e2d-43d2-42cf-b196-b6e5a15ab314`
+- Stock evidence JSON: `results/reports/evidence/quality_validation_v25_stock_english.json`
+- Custom evidence JSON: `results/reports/evidence/quality_validation_v25_custom_english.json`
 
 ## Prompt Comparison
 

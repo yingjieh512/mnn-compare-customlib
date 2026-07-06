@@ -231,12 +231,13 @@ void computeGroupSums(const QuantizedMatrix& matrix, const float* x, std::vector
     }
 }
 
-float computeRow(const QuantizedMatrix& matrix,
-                 const float* x,
-                 const float* group_sums,
-                 int gpr,
-                 size_t row_stride_bytes,
-                 int r) {
+template <bool AffineAsymmetric>
+float computeRowImpl(const QuantizedMatrix& matrix,
+                     const float* x,
+                     const float* group_sums,
+                     int gpr,
+                     size_t row_stride_bytes,
+                     int r) {
     float acc = matrix.bias.empty() ? 0.0f : matrix.bias[static_cast<size_t>(r)];
     for (int g = 0; g < gpr; ++g) {
         const int c0 = g * matrix.group_size;
@@ -244,7 +245,7 @@ float computeRow(const QuantizedMatrix& matrix,
         const size_t meta = static_cast<size_t>(r * gpr + g);
         const uint8_t* row_bytes = matrix.packed.data() + static_cast<size_t>(r) * row_stride_bytes + (c0 >> 1);
         const float code_dot = dotGroupW4CodesOnly(row_bytes, x + c0, count);
-        if (matrix.affine_asymmetric) {
+        if constexpr (AffineAsymmetric) {
             acc += matrix.scales[meta] * code_dot + matrix.zeros[meta] * group_sums[g];
         } else {
             acc += matrix.scales[meta] * (code_dot - matrix.zeros[meta] * group_sums[g]);
@@ -270,8 +271,14 @@ void gemvW4A16Neon(const QuantizedMatrix& matrix, const float* x, float* y) {
     const float* sums = group_sums.data();
 
     auto compute_range = [&](int r0, int r1) {
-        for (int r = r0; r < r1; ++r) {
-            y[r] = computeRow(matrix, x, sums, gpr, row_stride_bytes, r);
+        if (matrix.affine_asymmetric) {
+            for (int r = r0; r < r1; ++r) {
+                y[r] = computeRowImpl<true>(matrix, x, sums, gpr, row_stride_bytes, r);
+            }
+        } else {
+            for (int r = r0; r < r1; ++r) {
+                y[r] = computeRowImpl<false>(matrix, x, sums, gpr, row_stride_bytes, r);
+            }
         }
     };
 
@@ -304,11 +311,21 @@ int gemvW4A16ArgmaxNeon(const QuantizedMatrix& matrix, const float* x, float* ou
     auto compute_range = [&](int r0, int r1) {
         int best_index = r0;
         float best_value = -std::numeric_limits<float>::infinity();
-        for (int r = r0; r < r1; ++r) {
-            const float value = computeRow(matrix, x, sums, gpr, row_stride_bytes, r);
-            if (value > best_value || (value == best_value && r < best_index)) {
-                best_value = value;
-                best_index = r;
+        if (matrix.affine_asymmetric) {
+            for (int r = r0; r < r1; ++r) {
+                const float value = computeRowImpl<true>(matrix, x, sums, gpr, row_stride_bytes, r);
+                if (value > best_value || (value == best_value && r < best_index)) {
+                    best_value = value;
+                    best_index = r;
+                }
+            }
+        } else {
+            for (int r = r0; r < r1; ++r) {
+                const float value = computeRowImpl<false>(matrix, x, sums, gpr, row_stride_bytes, r);
+                if (value > best_value || (value == best_value && r < best_index)) {
+                    best_value = value;
+                    best_index = r;
+                }
             }
         }
         std::lock_guard<std::mutex> lock(best_mu);

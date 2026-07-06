@@ -2,6 +2,8 @@ build/
 build-host/
 build-android-check/
 build-host-opt/
+build-host-quality/
+build-host*/
 out/
 .gradle/
 .gradle-local/
@@ -36,6 +38,7 @@ results/reports/*/
 !results/reports/evidence/*.json
 !results/reports/evidence/*.txt
 !results/reports/evidence/*.yml
+results/reports/evidence/upload_logs*/
 third_party/MNN/build*/
 third_party/MNN/.git/
 **/.cxx/

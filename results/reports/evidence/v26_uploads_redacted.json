@@ -1,0 +1,26 @@
+{
+  "custom_app_upload.txt": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/57675644-fc8b-4248-b901-79ce49fa6994",
+    "status": "SUCCEEDED",
+    "type": "ANDROID_APP",
+    "name": "customlib_v26_buffer_reuse_debug.apk"
+  },
+  "custom_test_upload.txt": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/cd51881b-5cd0-48a8-83d2-7371a12b505e",
+    "status": "SUCCEEDED",
+    "type": "INSTRUMENTATION_TEST_PACKAGE",
+    "name": "customlib_v26_buffer_reuse_androidTest.apk"
+  },
+  "custom_quality_spec_reused_v25r2": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/4a6ee8ca-769f-479e-8960-54244a5db0e8",
+    "status": "SUCCEEDED",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "name": "customlib_v25r2_english_quality.yml"
+  },
+  "custom_benchmark_spec_reused_v25": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/9c9dd98b-066e-44c1-8e66-0069ea4e03a7",
+    "status": "SUCCEEDED",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "name": "customlib_v25_benchmark_cpu_vulkan_hybrid.yml"
+  }
+}

@@ -1,12 +1,12 @@
 # Kernel Library Code Walkthrough Final
 
-This document describes the final v17 custom inference library used for the Qwen3.5-9B AWS Device Farm backend sweep. It is written to match the measured code path and the final `BENCH_RESULT_JSON` evidence, not a planned architecture.
+This document describes the accepted v27 custom inference library used for the Qwen3.5-9B AWS Device Farm quality and performance final. It matches the measured code path and evidence JSON, not a planned architecture.
 
 ## Final Measured Path
 
-The final custom Android benchmark sets `xq_options.use_mnn_fallback = 0` in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` and enters the public ABI in `customlib/include/xqwen35.h`. The best v17 custom run requested `cpu_vulkan_hybrid`, but the benchmark JSON reports `custom_backend_actual = cpu`; no custom Vulkan kernel is claimed.
+The final custom Android benchmark sets `xq_options.use_mnn_fallback = 0` in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` and enters the public ABI in `customlib/include/xqwen35.h`. The final run requested `cpu_vulkan_hybrid`, but the benchmark JSON reports `custom_backend_actual = cpu`; no custom Vulkan kernel is claimed.
 
-The measured custom generation path is:
+Measured generation path:
 
 ```text
 NativeBenchmark.runBenchmark
@@ -21,11 +21,11 @@ NativeBenchmark.runBenchmark
      -> xq::runtime::Session::decodeOne
         -> xq::runtime::CustomModel::decodeOne
            -> run custom layer stack
-           -> run custom lm_head
+           -> run real lm_head logits
            -> run greedy sampling
 ```
 
-For the measured custom run:
+Final evidence:
 
 - `custom_path.use_mnn_fallback = 0`
 - `custom_path.calls_mnn_llm_response_for_measured_generation = false`
@@ -33,7 +33,7 @@ For the measured custom run:
 - `runtime.selected_kernels.hotpath_replaced = true`
 - `runtime.selected_kernels.fallback_op_families = []`
 
-The optional MNN fallback connector still exists for API compatibility, but it is not used by the measured custom benchmark.
+The optional MNN fallback connector still exists for debug compatibility, but it is not used by the measured custom benchmark.
 
 ## Repository Architecture
 
@@ -42,72 +42,31 @@ The optional MNN fallback connector still exists for API compatibility, but it i
 | Public ABI | `customlib/include/xqwen35.h` | Stable C ABI for Android/JNI and host tests. |
 | Session connector | `customlib/runtime/session.cpp` | Chooses MNN fallback only when requested; final custom run loads `CustomModel`. |
 | Custom runtime | `customlib/runtime/custom_model.cpp` | Implements prefill, decode, attention, linear attention, lm_head, sampling, and trace recording. |
-| Generated kernels | `customlib/kernels/generated/arm64_neon/xq_gemv_w4a16_neon.cpp` | Fused dequant + GEMV W4A16 kernel used by decode linear families. |
+| Generated kernels | `customlib/kernels/generated/arm64_neon/xq_gemv_w4a16_neon.cpp` | Fused dequant + GEMV W4A16 kernel used by decode linear families and streaming lm_head argmax. |
 | Reference kernels | `customlib/kernels/reference/*.cpp` | Host correctness references and non-final low-bit experiments. |
-| Packer | `customlib/packer/pack_qwen35_xq4.py` | Converts Qwen3.5 safetensors into the custom W4A16 package and manifest. |
-| Stock Android app | `android/app` | Stock MNN baseline instrumentation. |
-| Custom Android app | `android/benchmark_app` | Customlib instrumentation, JSON evidence, MNN hot-path trace evidence. |
-| Backend probe | `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` | Normalizes `cpu`, `vulkan`, and `cpu_vulkan_hybrid`; probes Vulkan availability without pretending kernels ran. |
-| AWS connector | `scripts/aws` and Android bootstrap | Uploads, schedules, downloads, and verifies Device Farm artifacts. |
-| Quality validation connector | `NativeBenchmark.runQualityValidation`, `NativeStockBenchmark.runQualityValidation`, `scripts/quality/compare_quality_validation.py` | Runs fixed token-ID prompts on Device Farm, dumps generated token IDs, and compares stock/custom output sanity separately from TPOT/TPS measurement. |
-
-## Output Quality Guard Connector
-
-The post-final v19r2 quality guard is intentionally separate from the performance measurement path. Android instrumentation sets `run_quality_validation=true`, then stock and custom JNI emit `BENCH_QUALITY_JSON` instead of `BENCH_RESULT_JSON`. The host script `scripts/quality/compare_quality_validation.py` compares exact generated token IDs, prefix length, token match rate, edit distance, invalid-token counts, empty outputs, and degenerate repetition.
-
-The v19r2 custom quality run was rejected. It still exercised the custom full decode path with `use_mnn_fallback = 0` and `fallback_op_families = []`, but produced repeated token `220` outputs for most prompts. That evidence is recorded in `results/reports/quality_validation_report.md`; it is not used to claim production-quality model behavior.
-
-A later v20 accuracy-debug pass patched concrete graph/runtime mismatches found while investigating that failure: linear-attention gate semantics, Qwen3.5 active-slice RoPE layout, and per-head full-attention q/gate deinterleave. Host tests passed after those patches, but the patched APK did not complete Device Farm quality validation because the retry runs stopped before instrumentation emitted `BENCH_QUALITY_JSON`. That blocker is documented in `results/reports/quality_debug_blocker.md`; it is not used to replace the v17 final benchmark.
-
-## Model Package And Loader
-
-The final package is produced by `customlib/packer/pack_qwen35_xq4.py`.
-
-The packer writes:
-
-- W4A16 matrices for `q_proj`, `k_proj`, `v_proj`, `o_proj`
-- W4A16 matrices for `gate_proj`, `up_proj`, `down_proj`
-- W4A16 linear-attention matrices: `in_proj_qkv`, `in_proj_a`, `in_proj_b`, `in_proj_z`, `out_proj`
-- W4A16 `lm_head.weight`
-- BF16 embeddings in `embeddings_bf16.bin`
-- F32 RMSNorm, Q/K norm, final norm, RoPE and linear-attention metadata
-- F32 linear-attention tensors: `conv1d.weight`, `A_log`, `dt_bias`
-- `xqwen35_manifest.json` with model dimensions, head counts, group size, RoPE theta, and partial rotary factor
-
-The runtime loader in `CustomModel::load` validates the manifest, loads the layer files, loads `lm_head_weight.xq4`, and sizes the hidden, attention, FFN, recurrent state, and logits buffers.
+| Packer | `customlib/packer/pack_qwen35_xq4.py`, `customlib/packer/pack_qwen35_xq4_numpy.py` | Converts Qwen3.5 safetensors into the custom W4A16 package and manifest. |
+| Stock Android app | `android/app` | Stock MNN baseline and stock quality instrumentation. |
+| Custom Android app | `android/benchmark_app` | Customlib instrumentation, JSON evidence, MNN hot-path trace evidence, custom quality instrumentation. |
+| Vulkan probe | `android/benchmark_app/src/main/cpp/benchmark_jni.cpp` | Probes Vulkan availability and records whether Vulkan kernels were actually used. |
+| Device Farm connector | `scripts/aws` plus Android bootstrap tests | Uploads, schedules, downloads, and verifies Device Farm artifacts. |
+| Quality connector | `runQualityValidation` JNI methods and `scripts/quality/compare_quality_validation.py` | Dumps generated token IDs and compares stock/custom output sanity separately from TPOT/TPS measurement. |
 
 ## Generated W4A16 GEMV
 
-The final generated W4 path is `customlib/kernels/generated/arm64_neon/xq_gemv_w4a16_neon.cpp`.
+The final generated W4 path is `customlib/kernels/generated/arm64_neon/xq_gemv_w4a16_neon.cpp`. It is a generated/tiled fused dequant + GEMV implementation and does not call `gemvLowBitReference`.
 
-This file is the generated/tiled fused dequant + GEMV implementation used by the benchmarked custom path. It does not call `gemvLowBitReference`.
-
-The kernel computes, per row and quantization group:
+For each output row and quantization group, it computes:
 
 ```text
 code_dot = sum(code_i * activation_i)
 x_sum    = sum(activation_i)
-partial  = scale * (code_dot - zero * x_sum)
+partial  = scale * (code_dot - zero * x_sum)       # symmetric v1 package
+partial  = scale * code_dot + zero * x_sum         # affine-asymmetric v2 package
 ```
 
-The arm64 NEON path processes 16 int4 codes at a time with byte loads, nibble unpacking, widening conversion, and vector FMA. The scalar tail handles uneven groups and the non-NEON host build.
+The arm64 path unpacks int4 nibbles, widens to float, accumulates with NEON FMA, and uses persistent worker threads for large row-parallel GEMV. It precomputes activation group sums once per input and reuses those sums across rows. The v27 optimization branches once per matrix on symmetric versus affine-asymmetric dequant, so the final symmetric Qwen package avoids a per-row/per-group branch. `gemvW4A16ArgmaxNeon` streams the `lm_head` argmax and avoids materializing full logits for greedy sampling.
 
-The v17 optimization pass added:
-
-- persistent worker threads for large row-parallel GEMV calls, avoiding per-kernel thread creation inside the decode loop
-- per-input activation group-sum precomputation so every row reuses the same `x_sum` values
-- streaming `gemvW4A16ArgmaxNeon` for `lm_head` greedy sampling, avoiding materializing the full logits vector in the measured W4 path
-- backend tags in each trace row so CPU/Vulkan/hybrid evidence cannot be conflated
-
-The final Qwen3.5 shapes exercised by Device Farm include:
-
-- 4096 x 4096 attention and output projections
-- 12288 x 4096 MLP gate/up projections
-- 4096 x 12288 MLP down projection
-- grouped key/value projection shapes used by the full-attention layers
-- 248320 x 4096 `lm_head`
-
-The generated W4 file contains no `gemvLowBitReference` call. The older W2/W3 generated files still call the reference helper, but they are not selected for the final W4A16 Qwen3.5 path.
+Qwen3.5 shapes exercised on Device Farm include 4096 x 4096 attention/output projections, 12288 x 4096 MLP gate/up projections, 4096 x 12288 MLP down projection, grouped key/value projection shapes, and the 248320 x 4096 `lm_head`.
 
 ## Custom Prefill
 
@@ -115,25 +74,23 @@ The generated W4 file contains no `gemvLowBitReference` call. The older W2/W3 ge
 
 For each prompt position it:
 
-- reads the BF16 embedding row for that token
+- reads the BF16 embedding row for that token through a persistent embedding stream
 - runs every layer in order
 - appends K/V into full-attention layer caches
 - updates linear-attention recurrent state in linear-attention layers
 - records `prefill_token_custom`
-- records `prefill_kv_build_custom` when a full-attention layer appends K/V during prefill
+- records `prefill_kv_build_custom` during full-attention prefill K/V append
 
-The final Device Farm custom trace contains 512 `prefill_token_custom` calls for the 512-token prompt.
+v27 reserves KV cache capacity up front and reuses embedding/attention buffers to reduce allocation overhead.
 
 ## Custom Full-Attention Decode
 
-`CustomModel::runFullAttention` implements grouped-query decode attention.
-
-The operation order is:
+`CustomModel::runFullAttention` implements grouped-query decode attention:
 
 1. Apply input RMSNorm.
 2. Run custom W4A16 `q_proj`, `k_proj`, and `v_proj`.
-3. Apply Q/K norm where the layer provides Qwen3.5 q_norm/k_norm weights.
-4. Apply RoPE to Q/K for the current absolute position.
+3. Apply Q/K norm where Qwen3.5 supplies q_norm/k_norm weights.
+4. Apply Qwen3.5 active-slice RoPE at the current absolute position.
 5. Append K/V to the per-layer cache.
 6. Map each query head to the correct KV head.
 7. Compute `score = dot(q, k) / sqrt(head_dim)`.
@@ -142,24 +99,11 @@ The operation order is:
 10. Apply attention output gate.
 11. Run custom W4A16 `o_proj`.
 
-Trace rows include:
-
-- `linear_q_proj_w4a16`
-- `linear_k_proj_w4a16`
-- `linear_v_proj_w4a16`
-- `rope_qk_custom`
-- `kv_append_custom`
-- `attention_score_custom`
-- `attention_softmax_custom`
-- `attention_v_reduce_custom`
-- `attention_output_gate_custom`
-- `linear_o_proj_w4a16`
+Trace rows include `linear_q_proj_w4a16`, `linear_k_proj_w4a16`, `linear_v_proj_w4a16`, `rope_qk_custom`, `kv_append_custom`, `attention_score_custom`, `attention_softmax_custom`, `attention_v_reduce_custom`, `attention_output_gate_custom`, and `linear_o_proj_w4a16`.
 
 ## Custom Linear-Attention State
 
-`CustomModel::runLinearAttention` replaces the earlier placeholder state logic.
-
-The runtime maintains recurrent state per linear-attention layer. During prefill and decode it reads and updates that state using exported linear-attention tensors:
+`CustomModel::runLinearAttention` maintains recurrent state per linear-attention layer across prefill and decode. It uses exported Qwen3.5 tensors:
 
 - `linear_attn_in_proj_a_weight.xq4`
 - `linear_attn_in_proj_b_weight.xq4`
@@ -170,21 +114,11 @@ The runtime maintains recurrent state per linear-attention layer. During prefill
 - `linear_attn_A_log.f32`
 - `linear_attn_dt_bias.f32`
 
-The measured path records:
-
-- `linear_attention_conv1d_custom`
-- `linear_attention_qk_l2norm_custom`
-- `linear_attention_state_update_custom`
-- `linear_attention_gated_rmsnorm_custom`
-- `linear_attn_out_proj_w4a16`
-
-The implementation is the most faithful recurrent update available from the exported Qwen3.5 tensors in the custom package. It keeps state across all prompt and generated positions and does not use the old tanh/hash placeholder path.
+The v27 path uses the exported `A_log` and `dt_bias` gate update instead of the rejected approximation path. Trace rows include `linear_attention_conv1d_custom`, `linear_attention_qk_l2norm_custom`, `linear_attention_state_update_custom`, `linear_attention_gated_rmsnorm_custom`, and `linear_attn_out_proj_w4a16`.
 
 ## FFN, RMSNorm, And RoPE
 
-The custom runtime implements RMSNorm, RoPE, and FFN gate math directly in `custom_model.cpp`.
-
-FFN order:
+The runtime applies Qwen-style norm weight handling by adding one to exported norm vectors before use. It implements RMSNorm, active-slice RoPE, and FFN gate math directly in `custom_model.cpp`:
 
 ```text
 post_attention_rmsnorm
@@ -195,170 +129,57 @@ down_proj W4A16
 residual add
 ```
 
-Trace rows include:
-
-- `rmsnorm_input`
-- `rmsnorm_post_attention`
-- `rmsnorm_final`
-- `linear_gate_proj_w4a16`
-- `linear_up_proj_w4a16`
-- `silu_gate_mul_custom`
-- `linear_down_proj_w4a16`
+Trace rows include `rmsnorm_input`, `rmsnorm_post_attention`, `rmsnorm_final`, `linear_gate_proj_w4a16`, `linear_up_proj_w4a16`, `silu_gate_mul_custom`, and `linear_down_proj_w4a16`.
 
 ## Real lm_head And Greedy Sampling
 
-The final custom path removes hash-based token generation.
+`CustomModel::sampleGreedy` removes hash-based token generation:
 
-`CustomModel::sampleGreedy`:
+1. Apply final RMSNorm.
+2. Run `lm_head_custom` with packed W4A16 `lm_head.weight`.
+3. Compute greedy argmax over real logits using streaming W4A16 argmax.
+4. Return the selected token.
 
-1. Applies final RMSNorm.
-2. Runs `lm_head_custom` with the packed W4A16 `lm_head.weight`.
-3. Computes greedy argmax over real logits. In the measured W4 path this uses streaming argmax directly over `lm_head` rows.
-4. Returns the selected token.
-
-Trace rows include:
-
-- `lm_head_custom`
-- `sampling_greedy_custom`
-
-The final benchmark settings use `temperature = 0`, `top_k = 1`, and `top_p = 1`, so greedy argmax is the required sampling behavior.
+The final benchmark settings use `temperature = 0`, `top_k = 1`, and `top_p = 1`, so greedy argmax is the required behavior. Trace rows include `lm_head_custom` and `sampling_greedy_custom`.
 
 ## Connectors
 
-### MNN Connector
+### MNN Baseline Connector
 
-The stock baseline is implemented in `android/app/src/main/cpp/stock_benchmark_jni.cpp`. It creates `MNN::Transformer::Llm`, configures the requested backend string, calls stock MNN generation, and records stock prefill TPS, decode TPS, TPOT, and instrumentation artifacts.
+`android/app/src/main/cpp/stock_benchmark_jni.cpp` creates `MNN::Transformer::Llm`, configures stock MNN CPU, runs generation, and emits stock `BENCH_RESULT_JSON`. It also implements `runQualityValidation` for stock `BENCH_QUALITY_JSON` using the same English fixed token-ID prompts.
 
-The custom APK also contains an MNN hot-path trace helper in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp`. That helper runs after measured custom generation to collect MNN op type/name wall clock evidence. It is not on the measured custom generation path.
+### Custom JNI Connector
 
-The v17 stock CPU run completed. The v17 stock Vulkan-request run initialized the Adreno Vulkan stack and then crashed before `BENCH_RESULT_JSON`, so there is no stock Vulkan TPS/TPOT number.
+`android/benchmark_app/src/main/cpp/benchmark_jni.cpp` exposes `NativeBenchmark.runBenchmark(...)` and `NativeBenchmark.runQualityValidation(...)`. The benchmark path emits TPOT/TPS and per-kernel wall clock. The quality path emits generated token IDs for fixed prompts and does not pollute TPOT/TPS timing.
 
 ### Fallback Connector
 
-`customlib/runtime/session.cpp` still supports `xq_options.use_mnn_fallback != 0` for debugging or compatibility. In that mode, `Session` creates an MNN LLM instance.
-
-The final custom Device Farm run does not use that mode. The JSON evidence reports `use_mnn_fallback = 0` and `calls_mnn_llm_response_for_measured_generation = false`.
-
-### JNI Connector
-
-The JNI bridge exposes two instrumentation entry points:
-
-- `NativeStockBenchmark.runBenchmark(...)`
-- `NativeBenchmark.runBenchmark(...)`
-
-Both accept prompt length, max new tokens, prompt token id, warmup iterations, measured iterations, and model directory. Both return `BENCH_RESULT_JSON` and write JSON artifacts under the Device Farm log directory.
+`customlib/runtime/session.cpp` still supports `xq_options.use_mnn_fallback != 0` for debugging. The final custom Device Farm run does not use it.
 
 ### Vulkan Probe Connector
 
-`android/benchmark_app/src/main/cpp/benchmark_jni.cpp` accepts a custom backend request of `cpu`, `vulkan`, or `cpu_vulkan_hybrid`.
+The custom JNI accepts `cpu`, `vulkan`, and `cpu_vulkan_hybrid`. It probes `libvulkan.so` and `vkGetInstanceProcAddr`. The final v27 run reports probe success but `custom_backend_actual = cpu` and `vulkan_generation_kernels_used = false`.
 
-For `vulkan` and `cpu_vulkan_hybrid`, it probes:
+### Benchmark And Quality Connectors
 
-- `dlopen("libvulkan.so")`
-- `dlsym("vkGetInstanceProcAddr")`
+Android instrumentation writes JSON artifacts into Device Farm customer artifacts:
 
-The v17 Device Farm hybrid-request run reports probe success, but `full_or_hybrid_kernel_status = not_enabled_in_this_build` and `custom_backend_actual = cpu`. Therefore the final report does not claim custom Vulkan kernel execution.
+- `stock_mnn_cpu_benchmark.json`
+- `customlib_cpu_vulkan_hybrid_benchmark.json`
+- `quality_validation_stock.json`
+- `quality_validation_custom.json`
 
-### Benchmark Connector
+`scripts/quality/compare_quality_validation.py` compares stock/custom quality JSON and produces `quality_validation_v27_english_comparison.json` plus `quality_validation_report.md`.
 
-The custom benchmark JSON is assembled in `android/benchmark_app/src/main/cpp/benchmark_jni.cpp`.
+## Evidence Summary
 
-It records:
+- Final custom benchmark ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/c444a573-d0e1-4924-abe2-5ca587478c2c`
+- Final stock benchmark ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/5165cf70-4ad2-4f21-bd40-89c6dd97c246`
+- Final custom quality ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/4ac8ce83-abf1-42fe-8cd2-3ffde19821f2`
+- Final stock quality ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/9908fb50-103c-4698-81c9-f2f12b98b335`
+- Custom decode TPS / TPOT: `2.11989` / `471.723 ms`
+- Stock decode TPS / TPOT: `2.26870` / `440.780 ms`
+- Custom / stock decode ratio: `0.9344x`
+- Quality gate: PASS, exact full-output token match `1 / 5`, comparison sanity `5 / 5`.
 
-- selected kernels and op coverage
-- `fallback_op_families = []`
-- requested and actual backend
-- per-op-family backend map
-- custom path booleans proving the measured path did not call MNN generation
-- per-run prefill/decode timing
-- measured mean TPS/TPOT
-- `per_kernel_wall_clock`
-- MNN hot-path trace evidence
-- model package and benchmark settings
-
-### Device Farm Connector
-
-The Android instrumentation bootstrap downloads split model parts, reassembles the zip, verifies SHA-256, unzips the package, and deletes the zip to preserve device storage.
-
-Final v17 Device Farm evidence:
-
-- Stock CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7e44236c-db1a-4900-9fd8-7d8d7d654e28`
-- Stock Vulkan-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/067c195b-1e14-4bca-998d-c7d38a65c5c7`
-- Custom CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/8d765268-aacd-4f52-b845-f5370b4d522f`
-- Custom CPU/Vulkan-hybrid-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1de54984-c9d9-41d1-81c1-7eed941585ed`
-- Device: Samsung Galaxy S26 Ultra, SM-S948U1, Android 16
-- Full model SHA-256 verified on-device: `9de692be1c1ef1002fac25bd8f93c76e1d31975caa234fe1725f9eb294bfaa34`
-
-## Final Measured Coverage
-
-`CustomModel::coverageSummary` reports:
-
-```text
-custom_decode_loop;hotpath_replaced=true;full_custom_decode=true;linear=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,linear_attn_qkv_a_b_z_out,lm_head;rmsnorm=custom;rope=custom;attention=custom_gqa_decode;linear_attention_state=custom_gated_delta;sampling=custom_greedy;prefill_kv_build=custom;fallback_ops=none
-```
-
-The final selected-kernel backend map reports CPU for all op families:
-
-```text
-q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,rmsnorm,rope,attention,linear_attention_state,lm_head,sampling,prefill_kv_build -> cpu
-```
-
-Final replaced op families:
-
-| Family | Final path |
-| --- | --- |
-| q_proj | custom W4A16 GEMV |
-| k_proj | custom W4A16 GEMV |
-| v_proj | custom W4A16 GEMV |
-| o_proj | custom W4A16 GEMV |
-| gate_proj | custom W4A16 GEMV |
-| up_proj | custom W4A16 GEMV |
-| down_proj | custom W4A16 GEMV |
-| rmsnorm | custom runtime math |
-| rope | custom runtime math |
-| attention | custom grouped-query decode attention |
-| linear_attention_state | custom recurrent state update |
-| lm_head | custom W4A16 logits |
-| sampling | custom greedy argmax |
-| prefill_kv_build | custom per-token cache build |
-
-Fallback op families in the measured custom path: none.
-
-## Test Coverage
-
-Host tests are integrated through the CMake test flow:
-
-```powershell
-$env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"
-cmake -S . -B build-host -G Ninja -DXQ_BUILD_TESTS=ON
-cmake --build build-host
-ctest --test-dir build-host --output-on-failure
-```
-
-Final host result: 2/2 tests passed.
-
-Required checks covered:
-
-- stable softmax vs scalar reference
-- grouped-query attention decode vs scalar reference
-- KV cache append/read
-- RoPE shape/position sanity
-- RMSNorm sanity
-- W4A16 GEMV against reference
-- lm_head argmax against scalar reference
-- greedy sampling
-- prefill builds KV cache length correctly
-- tiny end-to-end custom decode with toy dimensions
-
-## Final Benchmark Verdict
-
-The final v16 benchmark satisfies the requested same-device comparison and full custom path coverage.
-
-It does not show a speedup:
-
-- Stock decode TPS: 2.28587
-- Custom decode TPS: 0.424895
-- Custom / stock decode ratio: 0.1859x
-- Stock is 5.38x faster on decode TPS
-
-The correct claim is: the requested fallback families were implemented and measured in the custom path, but further optimization is needed before claiming performance leadership over stock MNN.
+The final result is a systems/kernel benchmark plus deterministic output sanity guard. It is not a production-quality language-model certification.

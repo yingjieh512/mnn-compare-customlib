@@ -12,7 +12,7 @@ Final pinned inputs:
 
 ## Final Status
 
-The v17 final backend sweep is complete. Stock MNN CPU, stock MNN Vulkan-request, custom CPU, and custom CPU/Vulkan-hybrid-request were scheduled on the same AWS Device Farm Samsung Galaxy S26 Ultra pool with the same Qwen3.5-9B package, same 512-token prompt, same 256-token decode length, greedy settings, and 1 warmup / 3 measured iterations.
+The accepted v27 delivery is complete. Stock MNN CPU and customlib were scheduled on the same AWS Device Farm Samsung Galaxy S26 Ultra pool with the same full Qwen3.5-9B package, same 512-token prompt, same 256-token decode length, greedy settings, and 1 warmup / 3 measured iterations. Separate Device Farm quality-validation runs also compared stock and custom generated token IDs on five deterministic English prompts.
 
 The measured custom generation path is full custom CPU generation:
 
@@ -22,56 +22,47 @@ The measured custom generation path is full custom CPU generation:
 - `runtime.selected_kernels.hotpath_replaced = true`
 - `runtime.selected_kernels.fallback_op_families = []`
 
-Vulkan was attempted honestly. Stock MNN Vulkan initialized the Adreno Vulkan stack and then crashed before `BENCH_RESULT_JSON`. Custom `cpu_vulkan_hybrid` successfully probed `libvulkan.so` and `vkGetInstanceProcAddr`, but no custom Vulkan kernels were enabled in this build, so the measured generation backend remained CPU. No Vulkan speedup is claimed.
-
 Final performance result:
 
 | Variant | Requested backend | Actual backend | Status | Prefill TPS | Decode TPS | Decode TPOT |
 | --- | --- | --- | --- | ---: | ---: | ---: |
-| Stock MNN | cpu | cpu | ok | 45.6380 | 2.27746 | 439.086 ms |
-| Stock MNN | vulkan | unavailable | crashed before benchmark JSON | n/a | n/a | n/a |
-| Customlib | cpu | cpu | ok | 2.13908 | 1.85575 | 538.865 ms |
-| Customlib | cpu_vulkan_hybrid | cpu | ok, Vulkan probed but not used for kernels | 2.21477 | 1.93417 | 517.018 ms |
+| Stock MNN v27 | cpu | cpu | ok | 45.25510 | 2.26870 | 440.780 ms |
+| Customlib v27 | cpu_vulkan_hybrid | cpu | ok, full custom decode | 2.47191 | 2.11989 | 471.723 ms |
+| Accepted v17 custom baseline | cpu_vulkan_hybrid | cpu | historical baseline | 2.21477 | 1.93417 | 517.018 ms |
 
-Speedup verdict: no custom speedup is claimed. The best measured custom result is `1.93417 / 2.27746 = 0.8493x` stock CPU decode TPS. The CPU optimization pass improved custom decode materially over v16, but stock MNN remains faster on this device.
+Speedup verdict: no stock-MNN speedup is claimed. Final custom is `0.9344x` fresh stock MNN CPU decode TPS. It is, however, `1.0960x` the accepted v17 custom baseline and passes the new output-quality guard.
 
-## Post-Final Optimization And Quality Guard
+## Output Quality Guard
 
-A bounded v18r2 optimization attempt later improved measured custom decode performance to `2.14021` TPS / `467.244 ms` TPOT on the same Device Farm pool, but the added deterministic output validation rejected that result. The custom v19r2 quality run produced degenerate repeated token `220` outputs for 4 of 5 validation prompts, exact token match was `0 / 5`, and comparison-gate pass was `0 / 5`.
+TPS/TPOT measure speed, not semantic quality. The final v27 custom result passed a deterministic Device Farm quality guard:
 
-Per the acceptance rule, v18r2 is not accepted as the official final result. The official final delivery remains the v17 backend sweep above.
+- Stock quality run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/9908fb50-103c-4698-81c9-f2f12b98b335`
+- Custom quality run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/4ac8ce83-abf1-42fe-8cd2-3ffde19821f2`
+- Quality gate: PASS
+- Exact full-output token match: `1 / 5` prompts
+- Comparison-gate prompts: `5 / 5`
+- Invalid tokens / empty outputs / repeated-token-220 degeneration: none
 
-- Quality validation report: `results/reports/quality_validation_report.md`
-- Stock quality evidence: `results/reports/evidence/quality_validation_v19r2_stock.json`
-- Custom quality evidence: `results/reports/evidence/quality_validation_v19r2_custom.json`
-- Quality comparison evidence: `results/reports/evidence/quality_validation_v19r2_comparison.json`
-- v18/v19 rejection note: `results/reports/optimization_attempt_v18.md`
+The custom library is validated for operator correctness, full custom decode-path execution, and basic generated-token sanity against stock MNN. It is not claimed as a production-quality model replacement; full semantic quality validation with perplexity and downstream task benchmarks remains future work.
 
-A later v20 accuracy-debug pass patched concrete graph/runtime mismatches in linear-attention gate math, Qwen3.5 partial RoPE layout, and full-attention q/gate splitting. Host tests passed, but the patched custom APK did not complete Device Farm quality validation; repeated runs stopped before emitting `BENCH_QUALITY_JSON`. This is recorded as a blocker, not a new final result:
-
-- v20 blocker note: `results/reports/quality_debug_blocker.md`
-- v20 Device Farm status evidence: `results/reports/evidence/quality_validation_v20_devicefarm_blocker_runs.json`
-
-Final evidence:
+## Final Evidence
 
 - Final report: `results/reports/final_devicefarm_report.md`
 - Machine-readable summary: `results/reports/final_devicefarm_report.json`
-- Backend sweep summary: `results/reports/evidence/v17_backend_sweep_summary.json`
-- Stock CPU evidence JSON: `results/reports/evidence/stock_mnn_cpu_benchmark_v17.json`
-- Stock Vulkan failure evidence JSON: `results/reports/evidence/stock_mnn_vulkan_benchmark_failure_v17.json`
-- Custom CPU evidence JSON: `results/reports/evidence/customlib_cpu_benchmark_v17.json`
-- Custom hybrid-request evidence JSON: `results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v17.json`
 - Code walkthrough: `docs/kernel_library_code_walkthrough_final.md`
-- Presentation deck: `results/reports/qwen35_9b_v17_backend_sweep_presentation.pptx`
-- Presentation contact sheet: `results/reports/qwen35_9b_v17_backend_sweep_presentation_contact_sheet.png`
+- Quality validation report: `results/reports/quality_validation_report.md`
+- Stock benchmark evidence: `results/reports/evidence/stock_mnn_cpu_benchmark_v27.json`
+- Custom benchmark evidence: `results/reports/evidence/customlib_cpu_vulkan_hybrid_benchmark_v27.json`
+- Quality comparison evidence: `results/reports/evidence/quality_validation_v27_english_comparison.json`
+- Presentation deck: `results/reports/qwen35_9b_v27_quality_performance_presentation.pptx`
 
 Final AWS Device Farm runs:
 
-- Stock MNN CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/7e44236c-db1a-4900-9fd8-7d8d7d654e28`
-- Stock MNN Vulkan-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/067c195b-1e14-4bca-998d-c7d38a65c5c7`
-- Custom CPU run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/8d765268-aacd-4f52-b845-f5370b4d522f`
-- Custom CPU/Vulkan-hybrid-request run ARN: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/1de54984-c9d9-41d1-81c1-7eed941585ed`
-- Device pool ARN: `arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213`
+- Stock MNN CPU benchmark: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/5165cf70-4ad2-4f21-bd40-89c6dd97c246`
+- Customlib benchmark: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/c444a573-d0e1-4924-abe2-5ca587478c2c`
+- Stock quality validation: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/9908fb50-103c-4698-81c9-f2f12b98b335`
+- Custom quality validation: `arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/4ac8ce83-abf1-42fe-8cd2-3ffde19821f2`
+- Device pool: `arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213`
 
 ## What The Custom Library Replaces
 
@@ -92,47 +83,36 @@ The public ABI is in `customlib/include/xqwen35.h`. The measured Android custom 
 ## Build Host Correctness Tests
 
 ```powershell
-$env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"
-cmake -S . -B build-host-opt -G Ninja -DXQ_BUILD_TESTS=ON
-cmake --build build-host-opt
-ctest --test-dir build-host-opt --output-on-failure
+$env:PATH = "C:\Users\Yingjie Huang\qwen-phone-npu-trial\third_party\toolchains\w64devkit\bin;$env:PATH"
+cmake --build build-host-quality
+ctest --test-dir build-host-quality --output-on-failure
 ```
 
-Final host result: 2/2 tests passed.
-
-Covered checks include stable softmax, grouped-query attention decode, KV cache append/read, RoPE sanity, RMSNorm sanity, W4A16 GEMV against reference, lm_head argmax, greedy sampling, prefill KV cache length, and tiny end-to-end custom decode.
+Final host result: 2 / 2 tests passed. The tests cover W4A16 GEMV/reference behavior, lm_head argmax, greedy sampling, stable softmax, grouped-query attention, KV cache, RoPE, RMSNorm, linear-attention state, prefill KV length, and tiny end-to-end custom decode.
 
 ## Build Android APKs
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build_android.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_android.ps1
 ```
 
-The v17 Device Farm runs used rebuilt stock/custom debug APKs plus androidTest APKs from this flow.
+The v27 Device Farm runs used rebuilt stock/custom release APKs plus androidTest APKs from this flow.
 
 ## Model Packing
 
-The final packer is `customlib/packer/pack_qwen35_xq4.py`. It exports W4A16 matrices and runtime metadata for:
-
-- full-attention projections and MLP projections
-- Qwen3.5 linear-attention tensors
-- `lm_head.weight`
-- embeddings and norm vectors
-- model dimensions, head counts, RoPE metadata, and quantization metadata
-
-The Device Farm bootstrap reassembled and verified the three-part model package on-device before each final run.
+The packers are `customlib/packer/pack_qwen35_xq4.py` and `customlib/packer/pack_qwen35_xq4_numpy.py`. They export W4A16 matrices and runtime metadata for full-attention projections, MLP projections, Qwen3.5 linear-attention tensors, `lm_head.weight`, embeddings, norm vectors, RoPE metadata, and quantization metadata. Device Farm reassembled and verified the three-part model package on-device before every final run.
 
 ## Repository Cleanup
 
 Generated build trees, raw Device Farm artifacts, APKs, ZIPs, model shards, virtualenvs, and local upload specs are ignored. Use:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\cleanup_local_artifacts.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\cleanup_local_artifacts.ps1 -Execute
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cleanup_local_artifacts.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/cleanup_local_artifacts.ps1 -Execute
 ```
 
 The cleanup keeps source, documentation, final reports, and small evidence JSON/TXT/YML files. It keeps the final local model zip unless `-RemoveFinalModelZip` is explicitly passed.
 
 ## Honesty Rules
 
-This repository only claims results backed by artifacts. The final v17 result is a faithful same-device full-model stock-vs-custom benchmark. It is not a speedup result, and it does not claim custom Vulkan kernel execution.
+This repository only claims results backed by artifacts. The final v27 result is a faithful same-device full-model stock-vs-custom benchmark with a separate output-quality guard. It is not a stock-MNN speedup result and does not claim custom Vulkan kernel execution.

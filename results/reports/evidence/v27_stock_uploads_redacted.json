@@ -1,0 +1,16 @@
+{
+  "stock_app": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/70d3e468-4239-4b9b-986a-a79df259fc66",
+    "name": "stock_mnn_v27_release.apk",
+    "type": "ANDROID_APP",
+    "status": "SUCCEEDED",
+    "metadata": "{\"device_admin\":false,\"activity_name\":\"com.example.xqwen35stock.MainActivity\",\"version_name\":\"0.1.0\",\"screens\":[\"small\",\"normal\",\"large\",\"xlarge\"],\"error_type\":null,\"package_name\":\"com.example.xqwen35stock\",\"version_code\":\"1\",\"sdk_version\":\"29\",\"native_code\":[\"arm64-v8a\"],\"target_sdk_version\":\"35\"}"
+  },
+  "stock_test": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/c7e0f741-30bc-4320-9650-cbd71643b2a4",
+    "name": "stock_mnn_v27_androidTest.apk",
+    "type": "INSTRUMENTATION_TEST_PACKAGE",
+    "status": "SUCCEEDED",
+    "metadata": "{\"test_package_name\":null,\"instrumentation_runner\":\"androidx.test.runner.AndroidJUnitRunner\",\"error_type\":null,\"package_name\":\"com.example.xqwen35stock.test\"}"
+  }
+}

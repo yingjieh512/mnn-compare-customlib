@@ -1,0 +1,26 @@
+{
+  "stock_app_upload.txt": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/53f85321-d70b-47bc-b1ea-61afbca4447d",
+    "status": "SUCCEEDED"
+  },
+  "stock_test_upload.txt": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/55cca8e3-6652-4506-88dd-fb6ea348a6dc",
+    "status": "SUCCEEDED"
+  },
+  "custom_app_upload.txt": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/dabc60f8-a978-4dab-ac2a-9e514a62c6e2",
+    "status": "SUCCEEDED"
+  },
+  "custom_test_upload.txt": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/79ceab20-5738-40b0-bfd2-28bda982f529",
+    "status": "SUCCEEDED"
+  },
+  "stock_spec_r2_upload.txt": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/68e82883-c05f-4631-b2c4-d92d1aef784d",
+    "status": "SUCCEEDED"
+  },
+  "custom_spec_r2_upload.txt": {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/4a6ee8ca-769f-479e-8960-54244a5db0e8",
+    "status": "SUCCEEDED"
+  }
+}

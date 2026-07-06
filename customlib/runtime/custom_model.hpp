@@ -4,6 +4,7 @@
 #include "../kernels/kernels.hpp"
 
 #include <cstdint>
+#include <fstream>
 #include <map>
 #include <string>
 #include <vector>
@@ -72,7 +73,7 @@ private:
     };
 
     bool loadLayer(const std::string& model_dir, int index, Layer* layer, std::string* error);
-    bool loadEmbeddingRow(int32_t token_id, std::vector<float>* out, KernelTrace* trace, std::string* error) const;
+    bool loadEmbeddingRow(int32_t token_id, std::vector<float>* out, KernelTrace* trace, std::string* error);
     void runLayer(Layer& layer, size_t position, KernelTrace* trace);
     void runLinear(const std::string& name,
                    const kernels::QuantizedMatrix& matrix,
@@ -116,6 +117,7 @@ private:
     std::vector<float> v_;
     std::vector<float> attn_hidden_;
     std::vector<float> attn_scores_;
+    std::vector<float> max_scores_;
     std::vector<float> linear_mixed_;
     std::vector<float> linear_a_;
     std::vector<float> linear_b_;
@@ -125,6 +127,8 @@ private:
     std::vector<float> up_;
     std::vector<float> ffn_;
     std::vector<float> logits_;
+    std::ifstream embedding_stream_;
+    std::vector<uint16_t> embedding_row_bf16_;
 };
 
 }  // namespace xq
