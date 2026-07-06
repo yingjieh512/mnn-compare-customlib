@@ -1,0 +1,18 @@
+{
+  "runs": [
+    {
+      "name": "stock_mnn_quality_v22_norm_greedy_r2",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/e3c2513e-c116-4eaf-a9f6-cfb7ebae0262",
+      "status": "SCHEDULING",
+      "result": "PENDING",
+      "created": 1783294105.823
+    },
+    {
+      "name": "customlib_quality_v22_norm_greedy_r2",
+      "arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/baac7bb4-30d8-477e-bbfc-9d9ea4a7afc7",
+      "status": "SCHEDULING",
+      "result": "PENDING",
+      "created": 1783294110.525
+    }
+  ]
+}

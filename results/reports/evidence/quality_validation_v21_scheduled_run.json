@@ -1,0 +1,13 @@
+{
+  "project_arn": "arn:aws:devicefarm:us-west-2:884244642857:project:64d2cc31-abd6-49f8-97da-162f82410bc0",
+  "device_pool_arn": "arn:aws:devicefarm:us-west-2:884244642857:devicepool:64d2cc31-abd6-49f8-97da-162f82410bc0/14d31c96-b8fc-4930-99c7-1a8948124213",
+  "run": {
+    "name": "customlib_quality_v21_current_patched_cpu_vulkan_hybrid",
+    "run_arn": "arn:aws:devicefarm:us-west-2:884244642857:run:64d2cc31-abd6-49f8-97da-162f82410bc0/519413e3-cda8-4489-add7-3f14d1b0a694",
+    "status": "SCHEDULING",
+    "result": "PENDING",
+    "app_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/3ffc59fc-36a0-444a-8c06-94be59e58381",
+    "test_upload_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/3210fe71-dd49-4ea4-af64-5b24e158318d",
+    "test_spec_arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/92f88d1a-b372-4663-a0ee-e727e3e94a51"
+  }
+}

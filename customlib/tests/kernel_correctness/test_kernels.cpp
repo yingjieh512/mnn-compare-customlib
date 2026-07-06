@@ -47,6 +47,35 @@ void testGemv(int bits) {
     }
 }
 
+void testAffineAsymmetricGemv() {
+    xq::kernels::QuantizedMatrix q;
+    q.rows = 2;
+    q.cols = 4;
+    q.bits = 4;
+    q.group_size = 4;
+    q.affine_asymmetric = true;
+    q.packed = {
+        static_cast<uint8_t>((2u << 4) | 0u),
+        static_cast<uint8_t>((15u << 4) | 7u),
+        static_cast<uint8_t>((4u << 4) | 1u),
+        static_cast<uint8_t>((8u << 4) | 6u),
+    };
+    q.scales = {0.5f, 0.25f};
+    q.zeros = {-1.0f, 2.0f};
+    const float x[4] = {1.0f, -2.0f, 0.5f, 3.0f};
+    float y[2] = {};
+    xq::kernels::gemvW4A16Neon(q, x, y);
+    std::vector<float> dense;
+    xq::kernels::dequantizeLowBitMatrix(q, &dense);
+    for (int r = 0; r < q.rows; ++r) {
+        float expected = 0.0f;
+        for (int c = 0; c < q.cols; ++c) {
+            expected += dense[static_cast<size_t>(r * q.cols + c)] * x[c];
+        }
+        requireClose(y[r], expected, 1.0e-6f, "affine_asymmetric_gemv");
+    }
+}
+
 void testRmsNorm() {
     const int n = 16;
     std::vector<float> x(n), w(n), y(n);
@@ -208,6 +237,9 @@ void testLinearAttentionMnnGraphInputs() {
     float q[kdim] = {0.4f, -0.5f, 0.6f};
     float k[kdim] = {0.2f, 0.1f, -0.3f};
     float v[vdim] = {0.7f, -0.2f};
+    float q2[kdim] = {-0.25f, 0.35f, 0.45f};
+    float k2[kdim] = {0.15f, -0.4f, 0.05f};
+    float v2[vdim] = {-0.1f, 0.55f};
 
     auto l2Normalize = [](float* values, int n) {
         float sum = 0.0f;
@@ -221,31 +253,64 @@ void testLinearAttentionMnnGraphInputs() {
     };
     l2Normalize(q, kdim);
     l2Normalize(k, kdim);
+    l2Normalize(q2, kdim);
+    l2Normalize(k2, kdim);
 
     const float a_proj = -0.35f;
+    const float a_proj2 = 0.125f;
     const float b_proj = 0.25f;
+    const float b_proj2 = -0.45f;
+    const float a_log = -2.65625f;
+    const float dt_bias = -3.53125f;
     const float beta = 1.0f / (1.0f + std::exp(-b_proj));
-    const float gate = -1.000001f * graphSoftplus(a_proj + 1.0e-6f);
+    const float beta2 = 1.0f / (1.0f + std::exp(-b_proj2));
+    const float gate = -std::exp(a_log) * graphSoftplus(a_proj + dt_bias);
+    const float gate2 = -std::exp(a_log) * graphSoftplus(a_proj2 + dt_bias);
 
     std::vector<float> got_state(kdim * vdim, 0.0f);
     float got[vdim] = {0.0f, 0.0f};
     xq::kernels::gatedDeltaDecodeReference(q, k, v, beta, gate, kdim, vdim, got_state.data(), got);
+    float got2[vdim] = {0.0f, 0.0f};
+    xq::kernels::gatedDeltaDecodeReference(q2, k2, v2, beta2, gate2, kdim, vdim, got_state.data(), got2);
 
-    const float decay = std::exp(gate);
     std::vector<float> expected_state(kdim * vdim, 0.0f);
     float expected[vdim] = {0.0f, 0.0f};
-    for (int kd = 0; kd < kdim; ++kd) {
-        for (int vd = 0; vd < vdim; ++vd) {
-            const size_t idx = static_cast<size_t>(kd * vdim + vd);
-            const float delta = v[vd] - expected_state[idx] * k[kd];
-            expected_state[idx] = decay * expected_state[idx] + beta * k[kd] * delta;
-            expected[vd] += q[kd] * expected_state[idx];
+    float expected2[vdim] = {0.0f, 0.0f};
+    auto step = [&](const float* qv,
+                    const float* kv,
+                    const float* vv,
+                    float beta_value,
+                    float gate_value,
+                    float* out) {
+        const float decay = std::exp(gate_value);
+        for (float& state_value : expected_state) {
+            state_value *= decay;
         }
-    }
-    const float out_scale = 1.0f / std::sqrt(static_cast<float>(kdim));
-    for (float& value : expected) {
-        value *= out_scale;
-    }
+        float pred[vdim] = {0.0f, 0.0f};
+        for (int kd = 0; kd < kdim; ++kd) {
+            for (int vd = 0; vd < vdim; ++vd) {
+                pred[vd] += expected_state[static_cast<size_t>(kd * vdim + vd)] * kv[kd];
+            }
+        }
+        float delta[vdim] = {0.0f, 0.0f};
+        for (int vd = 0; vd < vdim; ++vd) {
+            delta[vd] = beta_value * (vv[vd] - pred[vd]);
+        }
+        for (int kd = 0; kd < kdim; ++kd) {
+            for (int vd = 0; vd < vdim; ++vd) {
+                expected_state[static_cast<size_t>(kd * vdim + vd)] += kv[kd] * delta[vd];
+            }
+        }
+        for (int vd = 0; vd < vdim; ++vd) {
+            out[vd] = 0.0f;
+            for (int kd = 0; kd < kdim; ++kd) {
+                out[vd] += qv[kd] * expected_state[static_cast<size_t>(kd * vdim + vd)];
+            }
+            out[vd] /= std::sqrt(static_cast<float>(kdim));
+        }
+    };
+    step(q, k, v, beta, gate, expected);
+    step(q2, k2, v2, beta2, gate2, expected2);
 
     for (int i = 0; i < kdim * vdim; ++i) {
         requireClose(got_state[static_cast<size_t>(i)],
@@ -254,7 +319,8 @@ void testLinearAttentionMnnGraphInputs() {
                      "linear_attention_mnn_state");
     }
     for (int i = 0; i < vdim; ++i) {
-        requireClose(got[i], expected[i], 1.0e-6f, "linear_attention_mnn_out");
+        requireClose(got[i], expected[i], 1.0e-6f, "linear_attention_mnn_out_step1");
+        requireClose(got2[i], expected2[i], 1.0e-6f, "linear_attention_mnn_out_step2");
     }
 }
 
@@ -343,6 +409,7 @@ int main() {
     testGemv(4);
     testGemv(3);
     testGemv(2);
+    testAffineAsymmetricGemv();
     testRmsNorm();
     testRope();
     testStableSoftmax();

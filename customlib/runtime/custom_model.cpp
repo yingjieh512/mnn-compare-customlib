@@ -4,6 +4,7 @@
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -194,6 +195,12 @@ bool readVectorF32(const std::string& path, int expected, std::vector<float>* ou
     return true;
 }
 
+void addOneToVector(std::vector<float>* values) {
+    for (float& value : *values) {
+        value += 1.0f;
+    }
+}
+
 uint32_t readU32(std::ifstream& in) {
     uint32_t v = 0;
     in.read(reinterpret_cast<char*>(&v), sizeof(v));
@@ -226,7 +233,8 @@ bool readXq4(const std::string& path, kernels::QuantizedMatrix* matrix, std::str
     const uint64_t packed_bytes = readU64(in);
     const uint64_t scales_count = readU64(in);
     const uint64_t zeros_count = readU64(in);
-    if (!in || version != 1 || bits != 4 || rows == 0 || cols == 0 || group_size == 0 || scales_count != zeros_count) {
+    if (!in || (version != 1 && version != 2) || bits != 4 || rows == 0 || cols == 0 || group_size == 0 ||
+        scales_count != zeros_count) {
         *error = "invalid xq4 header: " + path;
         return false;
     }
@@ -234,6 +242,7 @@ bool readXq4(const std::string& path, kernels::QuantizedMatrix* matrix, std::str
     matrix->cols = static_cast<int>(cols);
     matrix->bits = 4;
     matrix->group_size = static_cast<int>(group_size);
+    matrix->affine_asymmetric = (version == 2);
     matrix->packed.assign(static_cast<size_t>(packed_bytes), 0);
     matrix->scales.assign(static_cast<size_t>(scales_count), 1.0f);
     matrix->zeros.assign(static_cast<size_t>(zeros_count), 0.0f);
@@ -429,6 +438,7 @@ bool CustomModel::load(const std::string& model_dir, std::string* error) {
     if (!readVectorF32(model_dir + "/norm_weight.f32", hidden_size_, &final_norm_, error)) {
         return false;
     }
+    addOneToVector(&final_norm_);
     if (!readXq4(model_dir + "/lm_head_weight.xq4", &lm_head_, error)) {
         return false;
     }
@@ -470,14 +480,21 @@ bool CustomModel::loadLayer(const std::string& model_dir, int index, Layer* laye
         !readXq4(p + "mlp_down_proj_weight.xq4", &layer->down_proj, error)) {
         return false;
     }
+    addOneToVector(&layer->input_norm);
+    addOneToVector(&layer->post_norm);
     if (fileExists(p + "self_attn_q_proj_weight.xq4")) {
         layer->full_attention = true;
-        return readXq4(p + "self_attn_q_proj_weight.xq4", &layer->q_proj, error) &&
-               readXq4(p + "self_attn_k_proj_weight.xq4", &layer->k_proj, error) &&
-               readXq4(p + "self_attn_v_proj_weight.xq4", &layer->v_proj, error) &&
-               readXq4(p + "self_attn_o_proj_weight.xq4", &layer->o_proj, error) &&
-               readVectorF32(p + "self_attn_q_norm_weight.f32", head_dim_, &layer->q_norm, error) &&
-               readVectorF32(p + "self_attn_k_norm_weight.f32", head_dim_, &layer->k_norm, error);
+        if (!readXq4(p + "self_attn_q_proj_weight.xq4", &layer->q_proj, error) ||
+            !readXq4(p + "self_attn_k_proj_weight.xq4", &layer->k_proj, error) ||
+            !readXq4(p + "self_attn_v_proj_weight.xq4", &layer->v_proj, error) ||
+            !readXq4(p + "self_attn_o_proj_weight.xq4", &layer->o_proj, error) ||
+            !readVectorF32(p + "self_attn_q_norm_weight.f32", head_dim_, &layer->q_norm, error) ||
+            !readVectorF32(p + "self_attn_k_norm_weight.f32", head_dim_, &layer->k_norm, error)) {
+            return false;
+        }
+        addOneToVector(&layer->q_norm);
+        addOneToVector(&layer->k_norm);
+        return true;
     }
     layer->full_attention = false;
     return readXq4(p + "linear_attn_in_proj_qkv_weight.xq4", &layer->linear_in_proj_qkv, error) &&
@@ -750,7 +767,9 @@ void CustomModel::runLinearAttention(Layer& layer, KernelTrace* trace) {
         for (int vh = 0; vh < linear_num_value_heads_; ++vh) {
             const int kh = std::min(linear_num_key_heads_ - 1, vh / factor);
             const float beta = sigmoid(linear_b_[static_cast<size_t>(vh)]);
-            const float gate = -1.000001f * softplus(linear_a_[static_cast<size_t>(vh)] + 1.0e-6f);
+            const float a_log = layer.linear_a_log[static_cast<size_t>(vh)];
+            const float dt_bias = layer.linear_dt_bias[static_cast<size_t>(vh)];
+            const float gate = -std::exp(a_log) * softplus(linear_a_[static_cast<size_t>(vh)] + dt_bias);
             float* state = layer.linear_recurrent_state.data() +
                            static_cast<size_t>(vh * linear_key_head_dim_ * linear_value_head_dim_);
             float* out = attn_hidden_.data() + static_cast<size_t>(vh * linear_value_head_dim_);
@@ -885,6 +904,73 @@ std::string CustomModel::coverageSummary() const {
            "linear=q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj,linear_attn_qkv_a_b_z_out,lm_head;"
            "rmsnorm=custom;rope=custom;attention=custom_gqa_decode;linear_attention_state=custom_gated_delta;"
            "sampling=custom_greedy;prefill_kv_build=custom;fallback_ops=none";
+}
+
+std::string CustomModel::debugJson(int top_k) const {
+    const int k = std::max(1, std::min(top_k, 16));
+    double sum = 0.0;
+    double sum_sq = 0.0;
+    float min_value = hidden_.empty() ? 0.0f : hidden_[0];
+    float max_value = min_value;
+    int nonfinite = 0;
+    for (float value : hidden_) {
+        if (!std::isfinite(value)) {
+            ++nonfinite;
+            continue;
+        }
+        sum += static_cast<double>(value);
+        sum_sq += static_cast<double>(value) * static_cast<double>(value);
+        min_value = std::min(min_value, value);
+        max_value = std::max(max_value, value);
+    }
+    const double n = static_cast<double>(hidden_.size());
+    const double mean = n > 0.0 ? sum / n : 0.0;
+    const double variance = n > 0.0 ? std::max(0.0, sum_sq / n - mean * mean) : 0.0;
+
+    std::vector<float> logits(static_cast<size_t>(std::max(0, lm_head_.rows)), 0.0f);
+    if (lm_head_.rows > 0 && lm_head_.cols == hidden_size_) {
+        kernels::gemvW4A16Neon(lm_head_, hidden_.data(), logits.data());
+    }
+    std::vector<int> best_indices;
+    best_indices.reserve(static_cast<size_t>(k));
+    for (int i = 0; i < static_cast<int>(logits.size()); ++i) {
+        const float value = logits[static_cast<size_t>(i)];
+        size_t pos = 0;
+        while (pos < best_indices.size() && logits[static_cast<size_t>(best_indices[pos])] >= value) {
+            ++pos;
+        }
+        if (pos < static_cast<size_t>(k)) {
+            best_indices.insert(best_indices.begin() + static_cast<std::ptrdiff_t>(pos), i);
+            if (best_indices.size() > static_cast<size_t>(k)) {
+                best_indices.pop_back();
+            }
+        }
+    }
+
+    std::ostringstream oss;
+    oss << "{\"hidden\":{\"size\":" << hidden_.size() << ",\"mean\":" << mean << ",\"std\":"
+        << std::sqrt(variance) << ",\"min\":" << min_value << ",\"max\":" << max_value
+        << ",\"l2\":" << std::sqrt(sum_sq) << ",\"nonfinite\":" << nonfinite << "},\"lm_head_topk\":[";
+    for (size_t i = 0; i < best_indices.size(); ++i) {
+        if (i != 0) {
+            oss << ",";
+        }
+        const int token = best_indices[i];
+        oss << "{\"token\":" << token << ",\"logit\":" << logits[static_cast<size_t>(token)] << "}";
+    }
+    oss << "]}";
+    return oss.str();
+}
+
+bool CustomModel::copyHidden(float* out_values, size_t value_capacity, size_t* out_size) const {
+    if (out_size) {
+        *out_size = hidden_.size();
+    }
+    if (!out_values || value_capacity < hidden_.size()) {
+        return false;
+    }
+    std::copy(hidden_.begin(), hidden_.end(), out_values);
+    return true;
 }
 
 }  // namespace xq

@@ -1,0 +1,35 @@
+[
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/3ffc59fc-36a0-444a-8c06-94be59e58381",
+    "name": "customlib_quality_v21_current_patched_cpu_vulkan_hybrid_debug.apk",
+    "created": 1783287481.487,
+    "type": "ANDROID_APP",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/3ffc59fc-36a0-444a-8c06-94be59e58381/customlib_quality_v21_current_patched_cpu_vulkan_hybrid_debug.apk?REDACTED",
+    "metadata": "{\"device_admin\":false,\"activity_name\":\"com.example.xqwen35bench.MainActivity\",\"version_name\":\"0.1.0\",\"screens\":[\"small\",\"normal\",\"large\",\"xlarge\"],\"error_type\":null,\"package_name\":\"com.example.xqwen35bench\",\"version_code\":\"1\",\"sdk_version\":\"29\",\"native_code\":[\"arm64-v8a\"],\"target_sdk_version\":\"35\"}",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE"
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/3210fe71-dd49-4ea4-af64-5b24e158318d",
+    "name": "customlib_quality_v21_current_patched_cpu_vulkan_hybrid_androidTest.apk",
+    "created": 1783287493.605,
+    "type": "INSTRUMENTATION_TEST_PACKAGE",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/3210fe71-dd49-4ea4-af64-5b24e158318d/customlib_quality_v21_current_patched_cpu_vulkan_hybrid_androidTest.apk?REDACTED",
+    "metadata": "{\"test_package_name\":null,\"instrumentation_runner\":\"androidx.test.runner.AndroidJUnitRunner\",\"error_type\":null,\"package_name\":\"com.example.xqwen35bench.test\"}",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE"
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/92f88d1a-b372-4663-a0ee-e727e3e94a51",
+    "name": "customlib_quality_v21_current_patched_cpu_vulkan_hybrid.yml",
+    "created": 1783287504.047,
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads-testspec.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/92f88d1a-b372-4663-a0ee-e727e3e94a51/customlib_quality_v21_current_patched_cpu_vulkan_hybrid.yml?REDACTED",
+    "metadata": "{\"valid\":true,\"androidTestHost\":\"amazon_linux_2\",\"androidAmazonLinux2HostFlag\":true}",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE"
+  }
+]

@@ -56,6 +56,7 @@ def basic_prompt_ok(prompt: dict[str, Any]) -> bool:
         prompt.get("invalid_token_count", 1) == 0
         and not prompt.get("empty_output", True)
         and not prompt.get("obvious_degenerate_output", True)
+        and not prompt.get("repeated_token_220_failure", False)
     )
 
 
@@ -129,6 +130,10 @@ def compare(stock: dict[str, Any], custom: dict[str, Any], min_overlap: float, m
                 "custom_decoded_text_available": bool(custom_prompt.get("decoded_text_available")),
                 "stock_decoded_generated_text": stock_prompt.get("decoded_generated_text", ""),
                 "custom_decoded_generated_text": custom_prompt.get("decoded_generated_text", ""),
+                "stock_repeated_token_220_failure": bool(stock_prompt.get("repeated_token_220_failure", False)),
+                "custom_repeated_token_220_failure": bool(custom_prompt.get("repeated_token_220_failure", False)),
+                "stock_most_repeated_token": stock_prompt.get("most_repeated_token"),
+                "custom_most_repeated_token": custom_prompt.get("most_repeated_token"),
             }
         )
     all_present = all(row.get("status") == "ok" for row in rows)

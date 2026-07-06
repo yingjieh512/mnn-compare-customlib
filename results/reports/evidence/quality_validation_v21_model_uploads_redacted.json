@@ -1,0 +1,32 @@
+[
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/8986e1bc-7a31-41d9-bff0-d52f80ca02a3",
+    "name": "qwen35_xq_fullcustom_v17_part00.zippart",
+    "created": 1783225502.725,
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/8986e1bc-7a31-41d9-bff0-d52f80ca02a3/qwen35_xq_fullcustom_v17_part00.zippart?REDACTED",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE"
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/b00760e9-7724-4bbc-9302-c4195bc0d394",
+    "name": "qwen35_xq_fullcustom_v17_part01.zippart",
+    "created": 1783227427.575,
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/b00760e9-7724-4bbc-9302-c4195bc0d394/qwen35_xq_fullcustom_v17_part01.zippart?REDACTED",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE"
+  },
+  {
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/417fe757-73b6-40ff-8001-5ad4ef0b653d",
+    "name": "qwen35_xq_fullcustom_v17_part02.zippart",
+    "created": 1783229250.249,
+    "type": "EXTERNAL_DATA",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/417fe757-73b6-40ff-8001-5ad4ef0b653d/qwen35_xq_fullcustom_v17_part02.zippart?REDACTED",
+    "contentType": "application/octet-stream",
+    "category": "PRIVATE"
+  }
+]

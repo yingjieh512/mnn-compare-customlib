@@ -38,6 +38,8 @@ public:
     int vocabSize() const { return vocab_size_; }
     int layers() const { return static_cast<int>(layers_.size()); }
     std::string coverageSummary() const;
+    std::string debugJson(int top_k) const;
+    bool copyHidden(float* out_values, size_t value_capacity, size_t* out_size) const;
 
 private:
     struct Layer {

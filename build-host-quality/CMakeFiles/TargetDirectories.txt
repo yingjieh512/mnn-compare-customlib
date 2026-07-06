@@ -1,0 +1,10 @@
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/CMakeFiles/xq_kernel_correctness.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/CMakeFiles/xq_runtime_correctness.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/CMakeFiles/xq_host_quality_runner.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/CMakeFiles/test.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/CMakeFiles/edit_cache.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/CMakeFiles/rebuild_cache.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/customlib/CMakeFiles/xqwen35.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/customlib/CMakeFiles/test.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/customlib/CMakeFiles/edit_cache.dir
+C:/Users/Yingjie Huang/Downloads/mnn-custom-inference-lib/build-host-quality/customlib/CMakeFiles/rebuild_cache.dir

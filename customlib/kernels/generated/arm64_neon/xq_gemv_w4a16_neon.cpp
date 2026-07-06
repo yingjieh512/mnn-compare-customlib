@@ -244,7 +244,11 @@ float computeRow(const QuantizedMatrix& matrix,
         const size_t meta = static_cast<size_t>(r * gpr + g);
         const uint8_t* row_bytes = matrix.packed.data() + static_cast<size_t>(r) * row_stride_bytes + (c0 >> 1);
         const float code_dot = dotGroupW4CodesOnly(row_bytes, x + c0, count);
-        acc += matrix.scales[meta] * (code_dot - matrix.zeros[meta] * group_sums[g]);
+        if (matrix.affine_asymmetric) {
+            acc += matrix.scales[meta] * code_dot + matrix.zeros[meta] * group_sums[g];
+        } else {
+            acc += matrix.scales[meta] * (code_dot - matrix.zeros[meta] * group_sums[g]);
+        }
     }
     return acc;
 }

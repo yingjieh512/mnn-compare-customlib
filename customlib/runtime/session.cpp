@@ -557,6 +557,25 @@ xq_status Session::getKernelTraceJson(char* json_out, size_t json_capacity) cons
     return XQ_OK;
 }
 
+xq_status Session::getDebugJson(char* json_out, size_t json_capacity) const {
+    if (!json_out || json_capacity == 0) {
+        return XQ_ERR_INVALID_ARGUMENT;
+    }
+    const std::string json = custom_model_ ? custom_model_->debugJson(10) : "{\"debug\":\"unavailable\"}";
+    if (json.size() + 1 > json_capacity) {
+        return XQ_ERR_BUFFER_TOO_SMALL;
+    }
+    std::memcpy(json_out, json.c_str(), json.size() + 1);
+    return XQ_OK;
+}
+
+xq_status Session::getHiddenState(float* out_values, size_t value_capacity, size_t* out_size) const {
+    if (!custom_model_) {
+        return XQ_ERR_NOT_READY;
+    }
+    return custom_model_->copyHidden(out_values, value_capacity, out_size) ? XQ_OK : XQ_ERR_BUFFER_TOO_SMALL;
+}
+
 void Session::setError(const std::string& message) {
     copyString(metrics_.error, sizeof(metrics_.error), message);
 }
@@ -662,6 +681,20 @@ xq_status xq_get_kernel_trace_json(xq_session* session, char* json_out, size_t j
         return XQ_ERR_INVALID_ARGUMENT;
     }
     return reinterpret_cast<xq::Session*>(session)->getKernelTraceJson(json_out, json_capacity);
+}
+
+xq_status xq_get_debug_json(xq_session* session, char* json_out, size_t json_capacity) {
+    if (!session) {
+        return XQ_ERR_INVALID_ARGUMENT;
+    }
+    return reinterpret_cast<xq::Session*>(session)->getDebugJson(json_out, json_capacity);
+}
+
+xq_status xq_get_hidden_state(xq_session* session, float* out_values, size_t value_capacity, size_t* out_size) {
+    if (!session || !out_size) {
+        return XQ_ERR_INVALID_ARGUMENT;
+    }
+    return reinterpret_cast<xq::Session*>(session)->getHiddenState(out_values, value_capacity, out_size);
 }
 
 }  // extern "C"

@@ -62,6 +62,8 @@ public:
     xq_status getLastMetrics(xq_metrics* out_metrics) const;
     xq_status getBackendInfo(char* json_out, size_t json_capacity) const;
     xq_status getKernelTraceJson(char* json_out, size_t json_capacity) const;
+    xq_status getDebugJson(char* json_out, size_t json_capacity) const;
+    xq_status getHiddenState(float* out_values, size_t value_capacity, size_t* out_size) const;
 
 private:
     using Clock = std::chrono::steady_clock;

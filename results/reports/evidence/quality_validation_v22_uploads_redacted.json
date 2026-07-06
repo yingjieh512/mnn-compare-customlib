@@ -1,0 +1,56 @@
+[
+  {
+    "log": "results\\reports\\evidence\\upload_logs_v22\\stock_app_upload.txt",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/d2317b52-9514-41fb-ac13-fc3edf522dcd",
+    "name": "stock_mnn_v22_norm_greedy_quality_debug.apk",
+    "type": "ANDROID_APP",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/d2317b52-9514-41fb-ac13-fc3edf522dcd/stock_mnn_v22_norm_greedy_quality_debug.apk?REDACTED",
+    "metadata": "{\"device_admin\":false,\"activity_name\":\"com.example.xqwen35stock.MainActivity\",\"version_name\":\"0.1.0\",\"screens\":[\"small\",\"normal\",\"large\",\"xlarge\"],\"error_type\":null,\"package_name\":\"com.example.xqwen35stock\",\"version_code\":\"1\",\"sdk_version\":\"29\",\"native_code\":[\"arm64-v8a\"],\"target_sdk_version\":\"35\"}"
+  },
+  {
+    "log": "results\\reports\\evidence\\upload_logs_v22\\stock_test_upload.txt",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/c1dacb88-cc33-4c4a-922c-8bb1c119d146",
+    "name": "stock_mnn_v22_norm_greedy_quality_androidTest.apk",
+    "type": "INSTRUMENTATION_TEST_PACKAGE",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/c1dacb88-cc33-4c4a-922c-8bb1c119d146/stock_mnn_v22_norm_greedy_quality_androidTest.apk?REDACTED",
+    "metadata": "{\"test_package_name\":null,\"instrumentation_runner\":\"androidx.test.runner.AndroidJUnitRunner\",\"error_type\":null,\"package_name\":\"com.example.xqwen35stock.test\"}"
+  },
+  {
+    "log": "results\\reports\\evidence\\upload_logs_v22\\custom_app_upload.txt",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/a4202bc9-d4f1-458e-90e3-09ca56c610da",
+    "name": "customlib_v22_norm_greedy_quality_debug.apk",
+    "type": "ANDROID_APP",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/a4202bc9-d4f1-458e-90e3-09ca56c610da/customlib_v22_norm_greedy_quality_debug.apk?REDACTED",
+    "metadata": "{\"device_admin\":false,\"activity_name\":\"com.example.xqwen35bench.MainActivity\",\"version_name\":\"0.1.0\",\"screens\":[\"small\",\"normal\",\"large\",\"xlarge\"],\"error_type\":null,\"package_name\":\"com.example.xqwen35bench\",\"version_code\":\"1\",\"sdk_version\":\"29\",\"native_code\":[\"arm64-v8a\"],\"target_sdk_version\":\"35\"}"
+  },
+  {
+    "log": "results\\reports\\evidence\\upload_logs_v22\\custom_test_upload.txt",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/71a0a421-cd83-4f3b-b9c3-c16ab1d04db2",
+    "name": "customlib_v22_norm_greedy_quality_androidTest.apk",
+    "type": "INSTRUMENTATION_TEST_PACKAGE",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/71a0a421-cd83-4f3b-b9c3-c16ab1d04db2/customlib_v22_norm_greedy_quality_androidTest.apk?REDACTED",
+    "metadata": "{\"test_package_name\":null,\"instrumentation_runner\":\"androidx.test.runner.AndroidJUnitRunner\",\"error_type\":null,\"package_name\":\"com.example.xqwen35bench.test\"}"
+  },
+  {
+    "log": "results\\reports\\evidence\\upload_logs_v22\\stock_spec_r2_upload.txt",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/292a06f0-7725-4be9-b56b-d1432301ba8d",
+    "name": "stock_v22_norm_greedy_quality_r2.yml",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads-testspec.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/292a06f0-7725-4be9-b56b-d1432301ba8d/stock_v22_norm_greedy_quality_r2.yml?REDACTED",
+    "metadata": "{\"valid\":true,\"androidTestHost\":\"amazon_linux_2\",\"androidAmazonLinux2HostFlag\":true}"
+  },
+  {
+    "log": "results\\reports\\evidence\\upload_logs_v22\\custom_spec_r2_upload.txt",
+    "arn": "arn:aws:devicefarm:us-west-2:884244642857:upload:64d2cc31-abd6-49f8-97da-162f82410bc0/c8cfb3df-dff3-4525-bc9d-a93ae9aaf618",
+    "name": "custom_v22_norm_greedy_quality_r2.yml",
+    "type": "INSTRUMENTATION_TEST_SPEC",
+    "status": "SUCCEEDED",
+    "url": "https://prod-us-west-2-uploads-testspec.s3.dualstack.us-west-2.amazonaws.com/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aproject%3A64d2cc31-abd6-49f8-97da-162f82410bc0/uploads/arn%3Aaws%3Adevicefarm%3Aus-west-2%3A884244642857%3Aupload%3A64d2cc31-abd6-49f8-97da-162f82410bc0/c8cfb3df-dff3-4525-bc9d-a93ae9aaf618/custom_v22_norm_greedy_quality_r2.yml?REDACTED",
+    "metadata": "{\"valid\":true,\"androidTestHost\":\"amazon_linux_2\",\"androidAmazonLinux2HostFlag\":true}"
+  }
+]

@@ -80,6 +80,9 @@ float dequantizeValue(const QuantizedMatrix& matrix, int row, int col) {
     const size_t bit_offset = (static_cast<size_t>(row) * matrix.cols + col) * matrix.bits;
     const uint32_t code = readBits(matrix.packed, bit_offset, matrix.bits);
     const size_t meta = static_cast<size_t>(row * gpr + group);
+    if (matrix.affine_asymmetric) {
+        return static_cast<float>(code) * matrix.scales[meta] + matrix.zeros[meta];
+    }
     return (static_cast<float>(code) - matrix.zeros[meta]) * matrix.scales[meta];
 }
 
@@ -104,4 +107,3 @@ void gemvLowBitReference(const QuantizedMatrix& matrix, const float* x, float* y
 
 }  // namespace kernels
 }  // namespace xq
-

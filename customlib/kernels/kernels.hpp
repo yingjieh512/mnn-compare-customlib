@@ -13,6 +13,7 @@ struct QuantizedMatrix {
     int cols = 0;
     int bits = 4;
     int group_size = 64;
+    bool affine_asymmetric = false;
     std::vector<uint8_t> packed;
     std::vector<float> scales;
     std::vector<float> zeros;

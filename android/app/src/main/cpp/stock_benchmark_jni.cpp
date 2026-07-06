@@ -12,6 +12,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -152,28 +153,37 @@ std::vector<ValidationPrompt> makeValidationPrompts() {
     std::vector<ValidationPrompt> prompts;
     prompts.push_back({"english_factual",
                        "short_english_factual",
-                       "Fixed token-ID surrogate for: What is the capital of France?",
-                       {16, 198, 3923, 374, 279, 6864, 315, 9625, 30}});
-    prompts.push_back({"chinese_short",
-                       "short_chinese",
-                       "Fixed token-ID surrogate for a short Chinese prompt.",
-                       {16, 198, 104321, 3837, 34187, 111308, 1773}});
+                       "Tokenizer-derived IDs for: What is the capital of France? Answer in one short sentence.",
+                       {3710, 369, 279, 6511, 314, 9338, 30, 21134, 303, 799, 2716, 11316, 13}});
+    prompts.push_back({"english_explain",
+                       "short_english_explain",
+                       "Tokenizer-derived IDs for: Explain in one sentence why the sky looks blue.",
+                       {814, 20139, 303, 799, 11316, 3069, 279, 12515, 5686, 6105, 13}});
     prompts.push_back({"code_like",
                        "code_like",
-                       "Fixed token-ID surrogate for: def add(a, b):",
-                       {16, 198, 755, 912, 2948, 7, 64, 11, 293, 997}});
+                       "Tokenizer-derived IDs for: Write a Python function add(a, b) that returns their sum.",
+                       {7734, 264, 12654, 709, 884, 2784, 11, 292, 8, 421, 4523, 836, 2542, 13}});
     prompts.push_back({"math_reasoning",
                        "math_reasoning",
-                       "Fixed token-ID surrogate for a short arithmetic reasoning prompt.",
-                       {16, 198, 17, 10, 17, 28, 30, 220}});
+                       "Tokenizer-derived IDs for a short arithmetic reasoning prompt.",
+                       {2592, 1017, 513, 220, 18, 39332, 321, 488, 3569, 220, 17, 777, 11, 1204, 1599, 39332, 635, 488, 599, 30, 21134, 1132, 279, 1324, 13}});
     ValidationPrompt long_prompt;
     long_prompt.id = "long_512_token_style";
     long_prompt.prompt_kind = "long_512_token_style";
-    long_prompt.prompt_text_hint = "Fixed 512-token benchmark-style prompt surrogate.";
-    const int pattern[] = {16, 198, 220, 271, 25, 30, 13, 11, 17, 18, 19, 20, 21, 22, 23, 24};
+    long_prompt.prompt_text_hint = "Tokenizer-derived 512-token benchmark-style prompt.";
+    const int first[] = {8917, 5437, 537, 279, 2614, 27502, 8129, 303, 1330, 61446, 31969, 13};
+    const int tail[] = {7860, 5437, 537, 279, 2614, 27502, 8129, 303, 1330, 61446, 31969, 13};
     long_prompt.tokens.reserve(512);
-    for (size_t i = 0; i < 512; ++i) {
-        long_prompt.tokens.push_back(pattern[i % (sizeof(pattern) / sizeof(pattern[0]))]);
+    for (int token : first) {
+        long_prompt.tokens.push_back(token);
+    }
+    while (long_prompt.tokens.size() < 512) {
+        for (int token : tail) {
+            if (long_prompt.tokens.size() == 512) {
+                break;
+            }
+            long_prompt.tokens.push_back(token);
+        }
     }
     prompts.push_back(std::move(long_prompt));
     return prompts;
@@ -223,6 +233,46 @@ size_t longestRepeatedRun(const std::vector<T>& values) {
 }
 
 template <typename T>
+int64_t longestRepeatedRunToken(const std::vector<T>& values) {
+    if (values.empty()) {
+        return -1;
+    }
+    size_t best = 1;
+    size_t current = 1;
+    int64_t best_token = static_cast<int64_t>(values[0]);
+    for (size_t i = 1; i < values.size(); ++i) {
+        if (values[i] == values[i - 1]) {
+            ++current;
+        } else {
+            if (current > best) {
+                best = current;
+                best_token = static_cast<int64_t>(values[i - 1]);
+            }
+            current = 1;
+        }
+    }
+    if (current > best) {
+        best_token = static_cast<int64_t>(values.back());
+    }
+    return best_token;
+}
+
+template <typename T>
+size_t longestRepeatedRunForToken(const std::vector<T>& values, int64_t token) {
+    size_t best = 0;
+    size_t current = 0;
+    for (T value : values) {
+        if (static_cast<int64_t>(value) == token) {
+            ++current;
+            best = std::max(best, current);
+        } else {
+            current = 0;
+        }
+    }
+    return best;
+}
+
+template <typename T>
 size_t uniqueTokenCount(const std::vector<T>& values) {
     std::unordered_set<int64_t> seen;
     for (T value : values) {
@@ -232,12 +282,55 @@ size_t uniqueTokenCount(const std::vector<T>& values) {
 }
 
 template <typename T>
+int64_t mostRepeatedToken(const std::vector<T>& values) {
+    if (values.empty()) {
+        return -1;
+    }
+    std::unordered_map<int64_t, size_t> counts;
+    int64_t best_token = static_cast<int64_t>(values[0]);
+    size_t best_count = 0;
+    for (T value : values) {
+        const int64_t token = static_cast<int64_t>(value);
+        const size_t count = ++counts[token];
+        if (count > best_count) {
+            best_count = count;
+            best_token = token;
+        }
+    }
+    return best_token;
+}
+
+template <typename T>
+size_t mostRepeatedTokenCount(const std::vector<T>& values) {
+    if (values.empty()) {
+        return 0;
+    }
+    std::unordered_map<int64_t, size_t> counts;
+    size_t best_count = 0;
+    for (T value : values) {
+        best_count = std::max(best_count, ++counts[static_cast<int64_t>(value)]);
+    }
+    return best_count;
+}
+
+template <typename T>
+bool repeatedToken220Failure(const std::vector<T>& values) {
+    return longestRepeatedRunForToken(values, 220) >= 8;
+}
+
+template <typename T>
 bool obviousDegenerateOutput(const std::vector<T>& values) {
     if (values.size() < 8) {
         return false;
     }
     const size_t longest_run = longestRepeatedRun(values);
     if (longest_run >= values.size()) {
+        return true;
+    }
+    if (longest_run >= 16) {
+        return true;
+    }
+    if (repeatedToken220Failure(values)) {
         return true;
     }
     return uniqueTokenCount(values) <= 1;
@@ -370,6 +463,10 @@ std::string runStockBenchmark(const std::string& model_dir,
     if (!setLlmConfig(llm.get(), "{\"tokenizer_file\":\"tokenizer.mtok\"}", "tokenizer_file", &error) ||
         !setLlmConfig(llm.get(), "{\"async\":false}", "async", &error) ||
         !setLlmConfig(llm.get(), "{\"reuse_kv\":false}", "reuse_kv", &error) ||
+        !setLlmConfig(llm.get(), "{\"sampler_type\":\"greedy\"}", "sampler_type", &error) ||
+        !setLlmConfig(llm.get(), "{\"temperature\":0}", "temperature", &error) ||
+        !setLlmConfig(llm.get(), "{\"top_k\":1}", "top_k", &error) ||
+        !setLlmConfig(llm.get(), "{\"top_p\":1}", "top_p", &error) ||
         !setLlmConfig(llm.get(), "{\"precision\":\"low\"}", "precision", &error) ||
         !setLlmConfig(llm.get(), "{\"memory\":\"low\"}", "memory", &error) ||
         !setLlmConfig(llm.get(), "{\"power\":\"normal\"}", "power", &error) ||
@@ -473,6 +570,7 @@ std::string runStockBenchmark(const std::string& model_dir,
         << "\"runtime\":{\"threads\":" << kThreads
         << ",\"backend_type_configured\":\"" << jsonEscape(backend_requested) << "\""
         << ",\"backend_actual_verified\":false"
+        << ",\"sampler_type_configured\":\"greedy\""
         << ",\"precision\":\"low\",\"memory\":\"low\",\"power\":\"normal\","
         << "\"use_mmap\":true,\"reuse_kv\":false,\"dynamic_option\":8,"
         << "\"attention_mode\":8,\"cpu_sme2_neon_division_ratio\":41,\"cpu_sme_core_num\":2},"
@@ -530,7 +628,7 @@ std::string stockQualityErrorJson(const std::string& model_dir,
         << "\"status\":\"error\","
         << "\"quality_gate_passed\":false,"
         << "\"error\":\"" << jsonEscape(error) << "\","
-        << "\"validation\":{\"prompt_set\":\"small_fixed_token_ids\","
+        << "\"validation\":{\"prompt_set\":\"small_english_tokenizer_ids\","
         << "\"validation_compare_to_custom\":true,"
         << "\"tokenizer_decode_available\":true,"
         << "\"validation_dump_tokens\":true,"
@@ -571,6 +669,10 @@ std::string runStockQualityValidation(const std::string& model_dir,
     if (!setLlmConfig(llm.get(), "{\"tokenizer_file\":\"tokenizer.mtok\"}", "tokenizer_file", &error) ||
         !setLlmConfig(llm.get(), "{\"async\":false}", "async", &error) ||
         !setLlmConfig(llm.get(), "{\"reuse_kv\":false}", "reuse_kv", &error) ||
+        !setLlmConfig(llm.get(), "{\"sampler_type\":\"greedy\"}", "sampler_type", &error) ||
+        !setLlmConfig(llm.get(), "{\"temperature\":0}", "temperature", &error) ||
+        !setLlmConfig(llm.get(), "{\"top_k\":1}", "top_k", &error) ||
+        !setLlmConfig(llm.get(), "{\"top_p\":1}", "top_p", &error) ||
         !setLlmConfig(llm.get(), "{\"precision\":\"low\"}", "precision", &error) ||
         !setLlmConfig(llm.get(), "{\"memory\":\"low\"}", "memory", &error) ||
         !setLlmConfig(llm.get(), "{\"power\":\"normal\"}", "power", &error) ||
@@ -619,6 +721,12 @@ std::string runStockQualityValidation(const std::string& model_dir,
         const int invalid_count = countInvalidTokens(generated, kQwen35VocabSize);
         const bool empty_output = generated.empty();
         const bool degenerate = obviousDegenerateOutput(generated);
+        const size_t longest_run = longestRepeatedRun(generated);
+        const int64_t longest_run_token = longestRepeatedRunToken(generated);
+        const int64_t most_repeated_token = mostRepeatedToken(generated);
+        const size_t most_repeated_count = mostRepeatedTokenCount(generated);
+        const size_t token_220_longest_run = longestRepeatedRunForToken(generated, 220);
+        const bool token_220_failure = repeatedToken220Failure(generated);
         const bool terminal_ok = context && terminalStatusOk(context->status);
         const bool prompt_ok = terminal_ok && invalid_count == 0 && !empty_output && !degenerate;
         all_ok = all_ok && prompt_ok;
@@ -639,7 +747,12 @@ std::string runStockQualityValidation(const std::string& model_dir,
                     << "\"status\":\"" << jsonEscape(status) << "\","
                     << "\"invalid_token_count\":" << invalid_count << ","
                     << "\"empty_output\":" << (empty_output ? "true" : "false") << ","
-                    << "\"longest_repeated_run\":" << longestRepeatedRun(generated) << ","
+                    << "\"longest_repeated_run\":" << longest_run << ","
+                    << "\"longest_repeated_run_token\":" << longest_run_token << ","
+                    << "\"most_repeated_token\":" << most_repeated_token << ","
+                    << "\"most_repeated_token_count\":" << most_repeated_count << ","
+                    << "\"repeated_token_220_longest_run\":" << token_220_longest_run << ","
+                    << "\"repeated_token_220_failure\":" << (token_220_failure ? "true" : "false") << ","
                     << "\"unique_token_count\":" << uniqueTokenCount(generated) << ","
                     << "\"obvious_degenerate_output\":" << (degenerate ? "true" : "false") << ","
                     << "\"prefill_us\":" << prefill_us << ","
@@ -666,9 +779,10 @@ std::string runStockQualityValidation(const std::string& model_dir,
         << "\"runtime\":{\"threads\":" << kThreads
         << ",\"backend_type_configured\":\"" << jsonEscape(backend_requested) << "\","
         << "\"backend_actual_verified\":false,"
+        << "\"sampler_type_configured\":\"greedy\","
         << "\"precision\":\"low\",\"memory\":\"low\",\"power\":\"normal\","
         << "\"use_mmap\":true,\"reuse_kv\":false},"
-        << "\"validation\":{\"prompt_set\":\"small_fixed_token_ids\","
+        << "\"validation\":{\"prompt_set\":\"small_english_tokenizer_ids\","
         << "\"validation_compare_to_custom\":true,"
         << "\"tokenizer_decode_available\":true,"
         << "\"validation_dump_tokens\":true,"

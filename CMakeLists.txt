@@ -101,4 +101,14 @@ if(XQ_BUILD_TESTS AND NOT ANDROID)
   set_tests_properties(xq_runtime_correctness PROPERTIES
     ENVIRONMENT "PATH=${XQ_TEST_COMPILER_DIR}\\;$<TARGET_FILE_DIR:xqwen35>"
   )
+
+  add_executable(xq_host_quality_runner
+    customlib/tools/xq_host_quality_runner.cpp
+  )
+  target_link_libraries(xq_host_quality_runner PRIVATE xqwen35)
+  add_custom_command(TARGET xq_host_quality_runner POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:xqwen35>
+            $<TARGET_FILE_DIR:xq_host_quality_runner>
+  )
 endif()
